@@ -37,6 +37,7 @@
     "experiments": {
       "typedRoutes": true,
       "tsconfigPaths": true
-    }
+    },
+    "projectId": "05a78503-0d23-47d8-90e0-196d0e1daa4d"
   }
 }
