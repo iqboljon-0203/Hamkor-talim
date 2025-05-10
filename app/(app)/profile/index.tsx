@@ -62,7 +62,7 @@ export default function ProfileScreen() {
       }
 
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        mediaTypes: ['images'],
         allowsEditing: true,
         aspect: [1, 1],
         quality: 0.5,
@@ -207,7 +207,7 @@ export default function ProfileScreen() {
         </View>
 
         <View style={styles.sectionContainer}>
-          <Text style={styles.sectionTitle}>Shaxsiy ma’lumotlar</Text>
+          <Text style={styles.sectionTitle}>Shaxsiy ma'lumotlar</Text>
 
           <View style={styles.infoItem}>
             <User2 size={20} color={COLORS.gray[600]} />

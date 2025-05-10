@@ -1,3 +1,6 @@
+import { Buffer } from 'buffer';
+global.Buffer = global.Buffer || Buffer;
+
 import { useEffect } from 'react';
 import { Redirect } from 'expo-router';
 import { useAuth } from '@/hooks/useAuth';

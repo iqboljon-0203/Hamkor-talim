@@ -9,7 +9,7 @@ import {
   Poppins_700Bold,
 } from '@expo-google-fonts/poppins';
 import { AuthProvider } from '@/hooks/useAuth';
-import { View, Text, ActivityIndicator, BackHandler } from 'react-native';
+import { View, Text, ActivityIndicator } from 'react-native';
 import { COLORS, FONTS } from '@/constants/Theme';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { enableScreens } from 'react-native-screens';
@@ -19,21 +19,6 @@ enableScreens();
 
 export default function RootLayout() {
   useFrameworkReady();
-
-  useEffect(() => {
-    const backAction = () => {
-      return true;
-    };
-
-    const backHandler = BackHandler.addEventListener(
-      'hardwareBackPress',
-      backAction,
-    );
-
-    return () => {
-      backHandler.remove();
-    };
-  }, []);
 
   const [fontsLoaded] = useFonts({
     'Poppins-Regular': Poppins_400Regular,

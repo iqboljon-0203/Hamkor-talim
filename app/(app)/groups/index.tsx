@@ -96,7 +96,6 @@ const TaskModal: React.FC<TaskModalProps> = ({
         ],
         copyToCacheDirectory: true,
       });
-      console.log('DocumentPicker natija:', result);
       if (!result.canceled && result.assets && result.assets.length > 0) {
         const asset = result.assets[0];
         const file = {
@@ -105,10 +104,8 @@ const TaskModal: React.FC<TaskModalProps> = ({
           name: asset.name,
         };
         setSelectedFile(file);
-        console.log('Tanlangan fayl:', file);
       } else {
         setSelectedFile(null);
-        console.log('Foydalanuvchi fayl tanlashni bekor qildi');
       }
     } catch (e) {
       setSelectedFile(null);

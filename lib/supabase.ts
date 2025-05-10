@@ -84,15 +84,9 @@ export const uploadFile = async (
   fileType: string,
 ) => {
   try {
-    console.log('uploadFile chaqirildi:', {
-      bucket,
-      filePath,
-      fileUri,
-      fileType,
-    });
+    
     const response = await fetch(fileUri);
     const blob = await response.blob();
-    console.log('Blob tayyor:', blob);
 
     const { data, error } = await supabase.storage
       .from(bucket)
@@ -105,7 +99,6 @@ export const uploadFile = async (
       console.error('Supabase storage upload error:', error);
       throw error;
     }
-    console.log('Supabase storage upload data:', data);
     return data;
   } catch (error) {
     console.error('Error uploading file:', error);

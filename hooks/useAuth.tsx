@@ -73,35 +73,58 @@ export function AuthProvider({
       if (error) {
         if (error.code === 'PGRST116') {
           // Profil topilmadi, yangi profil yaratamiz
-          const { data: userData } = await supabase.auth.getUser();
+          const { data: userData, error: userError } =
+            await supabase.auth.getUser();
+
+          if (userError) {
+            console.error('Error getting user data:', userError);
+            throw userError;
+          }
+
           if (userData?.user) {
             const { error: insertError } = await supabase
               .from('profiles')
-              .insert([
-                {
-                  id: userId,
-                  email: userData.user.email,
-                  full_name: userData.user.user_metadata.full_name,
-                  role: userData.user.user_metadata.role,
-                },
-              ]);
-            if (!insertError) {
-              const { data: newProfile } = await supabase
-                .from('profiles')
-                .select('*')
-                .eq('id', userId)
-                .single();
-              setUser(newProfile as UserProfile);
-              return;
+              .upsert(
+                [
+                  {
+                    id: userId,
+                    email: userData.user.email,
+                    full_name:
+                      userData.user.user_metadata.full_name || 'New User',
+                    role: userData.user.user_metadata.role || 'student',
+                  },
+                ],
+                { onConflict: 'id' },
+              );
+
+            if (insertError) {
+              console.error('Error creating profile:', insertError);
+              throw insertError;
             }
+
+            // Get the newly created profile
+            const { data: newProfile, error: profileError } = await supabase
+              .from('profiles')
+              .select('*')
+              .eq('id', userId)
+              .single();
+
+            if (profileError) {
+              console.error('Error fetching new profile:', profileError);
+              throw profileError;
+            }
+
+            setUser(newProfile as UserProfile);
+            return;
           }
         }
+        console.error('Profile fetch error:', error);
         throw error;
       }
 
       setUser(data as UserProfile);
     } catch (error) {
-      console.error('Error fetching user profile:', error);
+      console.error('Error in fetchUserProfile:', error);
       setUser(null);
     }
   };
@@ -148,17 +171,23 @@ export function AuthProvider({
       if (signUpError) return { error: signUpError };
       if (!user) return { error: new Error('Foydalanuvchi yaratilmadi') };
 
-      // Create profile
-      const { error: profileError } = await supabase.from('profiles').upsert([
-        {
-          id: user.id,
-          email,
-          full_name: fullName,
-          role,
-        },
-      ]);
+      // Create profile with upsert to handle potential duplicates
+      const { error: profileError } = await supabase.from('profiles').upsert(
+        [
+          {
+            id: user.id,
+            email,
+            full_name: fullName,
+            role,
+          },
+        ],
+        { onConflict: 'id' },
+      );
 
-      if (profileError) return { error: profileError };
+      if (profileError) {
+        console.error('Profile creation error:', profileError);
+        return { error: profileError };
+      }
 
       // Avtomatik ravishda tizimga kirish
       const { error: signInError } = await supabase.auth.signInWithPassword({
@@ -170,6 +199,7 @@ export function AuthProvider({
 
       return { error: null };
     } catch (error) {
+      console.error('Sign up error:', error);
       return { error };
     }
   };

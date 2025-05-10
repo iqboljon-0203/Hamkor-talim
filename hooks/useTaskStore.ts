@@ -93,16 +93,13 @@ export const useTaskStore = create<TaskState>((set, get) => ({
   },
 
   createTask: async (task, file) => {
-    console.log('createTask chaqirildi:', { task, file });
     try {
       let fileUrl;
 
       if (file) {
-        console.log('uploadFile chaqirildi:', file);
         const filePath = `tasks/${Date.now()}_${file.name}`;
         await uploadFile('task-files', filePath, file.uri, file.type);
         fileUrl = getFileUrl('task-files', filePath);
-        console.log('Yuklangan fayl URL:', fileUrl);
       }
 
       // Remove 'file' property if exists (typescript-friendly)

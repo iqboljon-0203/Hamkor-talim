@@ -26,10 +26,7 @@ export default function AppLayout() {
   const { user, loading, isTeacher } = useAuth();
   const [shouldRedirect, setShouldRedirect] = useState(false);
 
-  // Konsolga user va isTeacher qiymatini chiqaramiz
-  console.log('user:', user);
-  console.log('isTeacher:', isTeacher, 'user.role:', user?.role);
-
+ 
   useEffect(() => {
     // If user is null and not loading, need to redirect to auth
     if (!loading && !user) {
@@ -65,7 +62,7 @@ export default function AppLayout() {
       ),
     },
     {
-      name: 'submissions',
+      name: 'results',
       label: 'Javoblar',
       icon: ({ color, size }: TabIconProps) => (
         <FileText size={size} color={color} />
@@ -103,7 +100,7 @@ export default function AppLayout() {
       ),
     },
     {
-      name: 'grades',
+      name: 'results',
       label: 'Baholar',
       icon: ({ color, size }: TabIconProps) => (
         <Star size={size} color={color} />
@@ -123,7 +120,6 @@ export default function AppLayout() {
         <User2 size={size} color={color} />
       ),
     },
-    
   ];
 
   // Tablar massivini tuzamiz
@@ -148,16 +144,20 @@ export default function AppLayout() {
         headerShown: false,
       }}
     >
-      {tabScreens.map((tab) => (
-        <Tabs.Screen
-          key={tab.name}
-          name={tab.name}
-          options={{
-            title: tab.label,
-            tabBarIcon: tab.icon,
-          }}
-        />
-      ))}
+      {tabScreens.map((tab) => {
+        if (tab.name === 'submissions' && !isTeacher) return null;
+        if (tab.name === 'grades' && isTeacher) return null;
+        return (
+          <Tabs.Screen
+            key={tab.name}
+            name={tab.name}
+            options={{
+              title: tab.label,
+              tabBarIcon: tab.icon,
+            }}
+          />
+        );
+      })}
     </Tabs>
   );
 }
