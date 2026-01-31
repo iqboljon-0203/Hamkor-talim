@@ -1,19 +1,11 @@
 import { Tabs } from 'expo-router';
 import { useAuth } from '@/hooks/useAuth';
-import {
-  Home,
-  Users,
-  BookOpen,
-  MessageSquare,
-  FileText,
-  User2,
-  Calendar,
-  Star,
-} from 'lucide-react-native';
+import { Home, Users, FileText, User2, Calendar, Star } from 'lucide-react-native';
 import Theme from '@/constants/Theme';
 import { ActivityIndicator, View } from 'react-native';
 import { useEffect, useState } from 'react';
 import { Redirect } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const { COLORS, FONTS, FONT_SIZES } = Theme;
 
@@ -25,6 +17,7 @@ interface TabIconProps {
 export default function AppLayout() {
   const { user, loading, isTeacher } = useAuth();
   const [shouldRedirect, setShouldRedirect] = useState(false);
+  const insets = useSafeAreaInsets();
 
  
   useEffect(() => {
@@ -133,8 +126,8 @@ export default function AppLayout() {
         tabBarStyle: {
           borderTopWidth: 1,
           borderTopColor: COLORS.gray[200],
-          height: 60,
-          paddingBottom: 5,
+          height: 60 + insets.bottom,
+          paddingBottom: Math.max(insets.bottom, 10),
           paddingTop: 5,
         },
         tabBarLabelStyle: {

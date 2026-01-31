@@ -6,7 +6,6 @@ import {
   ScrollView,
   TouchableOpacity,
   RefreshControl,
-  Platform,
   Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -14,228 +13,31 @@ import { COLORS, FONTS, FONT_SIZES, SPACING } from '@/constants/Theme';
 import { useAuth } from '@/hooks/useAuth';
 import Card from '@/components/ui/Card';
 import { useGroupStore } from '@/hooks/useGroupStore';
+import { useToast } from '@/context/ToastContext';
 import { useTaskStore } from '@/hooks/useTaskStore';
 import { router } from 'expo-router';
 import {
   PlusCircle,
   Users,
   FileText,
-  Upload,
-  X,
   Edit2,
   Calendar,
   File,
 } from 'lucide-react-native';
 import Button from '@/components/ui/Button';
-import Modal from 'react-native-modal';
 import Input from '@/components/ui/Input';
-import DateTimePicker from '@react-native-community/datetimepicker';
-import * as DocumentPicker from 'expo-document-picker';
 import { Task } from '@/lib/supabase';
+import TaskModal from '@/components/ui/TaskModal';
 import * as Clipboard from 'expo-clipboard';
-
-interface TaskModalProps {
-  isVisible: boolean;
-  onClose: () => void;
-  onSubmit: (taskData: {
-    title: string;
-    description: string;
-    due_date: string;
-    file?: { uri: string; type: string; name: string };
-  }) => Promise<void>;
-  initialData?: Task;
-}
-
-const TaskModal: React.FC<TaskModalProps> = ({
-  isVisible,
-  onClose,
-  onSubmit,
-  initialData,
-}) => {
-  const [taskTitle, setTaskTitle] = useState(initialData?.title || '');
-  const [taskDescription, setTaskDescription] = useState(
-    initialData?.description || '',
-  );
-  const [taskDueDate, setTaskDueDate] = useState(initialData?.due_date || '');
-  const [showDatePicker, setShowDatePicker] = useState(false);
-  const [selectedDate, setSelectedDate] = useState(
-    initialData?.due_date ? new Date(initialData.due_date) : new Date(),
-  );
-  const [selectedFile, setSelectedFile] =
-    useState<DocumentPicker.DocumentResult | null>(null);
-  const [error, setError] = useState('');
-
-  useEffect(() => {
-    if (initialData) {
-      setTaskTitle(initialData.title);
-      setTaskDescription(initialData.description);
-      setTaskDueDate(initialData.due_date);
-      setSelectedDate(new Date(initialData.due_date));
-    } else {
-      // Yangi vazifa yaratilganda bugungi sanani o'rnatish
-      const today = new Date();
-      setSelectedDate(today);
-      setTaskDueDate(today.toISOString().split('T')[0]);
-    }
-  }, [initialData]);
-
-  const handleDateChange = (event: any, date?: Date) => {
-    setShowDatePicker(false);
-    if (date) {
-      setSelectedDate(date);
-      setTaskDueDate(date.toISOString().split('T')[0]);
-    }
-  };
-
-  const handleFilePick = async () => {
-    try {
-      const result = await DocumentPicker.getDocumentAsync({
-        type: [
-          'application/pdf',
-          'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-        ],
-        copyToCacheDirectory: true,
-      });
-      if (!result.canceled && result.assets && result.assets.length > 0) {
-        const asset = result.assets[0];
-        const file = {
-          uri: asset.uri,
-          type: asset.mimeType || 'application/pdf',
-          name: asset.name,
-        };
-        setSelectedFile(file);
-      } else {
-        setSelectedFile(null);
-      }
-    } catch (e) {
-      setSelectedFile(null);
-      console.error('Fayl tanlashda xatolik:', e);
-    }
-  };
-
-  const handleSubmit = async () => {
-    if (!taskTitle.trim() || !taskDescription.trim() || !taskDueDate.trim()) {
-      setError('Please fill in all fields');
-      return;
-    }
-
-    try {
-      await onSubmit({
-        title: taskTitle,
-        description: taskDescription,
-        due_date: taskDueDate,
-        file: selectedFile || undefined,
-      });
-
-      // Reset form
-      setTaskTitle('');
-      setTaskDescription('');
-      setTaskDueDate('');
-      setSelectedDate(new Date());
-      setSelectedFile(null);
-      setError('');
-      onClose();
-    } catch (error: any) {
-      setError(error.message || 'Failed to save task');
-    }
-  };
-
-  return (
-    <Modal
-      isVisible={isVisible}
-      onBackdropPress={onClose}
-      animationIn="slideInUp"
-      animationOut="slideOutDown"
-      backdropTransitionOutTiming={0}
-      style={styles.modal}
-    >
-      <View style={styles.modalContent}>
-        <Text style={styles.modalTitle}>
-          {initialData ? 'Edit Task' : 'Create New Task'}
-        </Text>
-
-        {error ? <Text style={styles.errorText}>{error}</Text> : null}
-
-        <Input
-          label="Task Title"
-          placeholder="Enter task title"
-          value={taskTitle}
-          onChangeText={setTaskTitle}
-        />
-
-        <Input
-          label="Description"
-          placeholder="Enter task description"
-          value={taskDescription}
-          onChangeText={setTaskDescription}
-          multiline
-          numberOfLines={3}
-        />
-
-        <TouchableOpacity
-          style={styles.dateInput}
-          onPress={() => setShowDatePicker(true)}
-        >
-          <Text style={styles.dateInputLabel}>Due Date</Text>
-          <Text style={styles.dateInputValue}>
-            {taskDueDate || 'Select date'}
-          </Text>
-        </TouchableOpacity>
-
-        {showDatePicker && (
-          <DateTimePicker
-            value={selectedDate}
-            mode="date"
-            display="default"
-            onChange={handleDateChange}
-            minimumDate={new Date()}
-          />
-        )}
-
-        <TouchableOpacity style={styles.fileInput} onPress={handleFilePick}>
-          <View style={styles.fileInputContent}>
-            <Upload size={20} color={COLORS.primary[500]} />
-            <Text style={styles.fileInputText}>
-              {selectedFile?.type === 'success'
-                ? selectedFile.name
-                : initialData?.file_url
-                  ? 'Change file (PDF or DOCX)'
-                  : 'Attach file (PDF or DOCX)'}
-            </Text>
-          </View>
-          {selectedFile?.type === 'success' && (
-            <TouchableOpacity
-              onPress={() => setSelectedFile(null)}
-              style={styles.removeFileButton}
-            >
-              <X size={20} color={COLORS.error[500]} />
-            </TouchableOpacity>
-          )}
-        </TouchableOpacity>
-
-        <View style={styles.modalButtons}>
-          <Button
-            title="Cancel"
-            onPress={onClose}
-            type="outline"
-            style={styles.modalButton}
-          />
-          <Button
-            title={initialData ? 'Save Changes' : 'Create Task'}
-            onPress={handleSubmit}
-            style={styles.modalButton}
-          />
-        </View>
-      </View>
-    </Modal>
-  );
-};
+import Modal from 'react-native-modal';
+import Skeleton from '@/components/ui/Skeleton';
 
 export default function GroupsScreen() {
   const { user, isTeacher } = useAuth();
-  const { groups, loading, fetchGroups, createGroup, joinGroup } =
+  const { groups, loading: groupsLoading, fetchGroups, createGroup, joinGroup } =
     useGroupStore();
-  const { createTask, updateTask, tasks, fetchTasks } = useTaskStore();
+  const { createTask, updateTask, tasks, fetchTasks, loading: tasksLoading } = useTaskStore();
+  const { showToast } = useToast();
   const [refreshing, setRefreshing] = useState(false);
   const [isCreateModalVisible, setCreateModalVisible] = useState(false);
   const [isJoinModalVisible, setJoinModalVisible] = useState(false);
@@ -248,6 +50,8 @@ export default function GroupsScreen() {
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [expandedGroup, setExpandedGroup] = useState<string | null>(null);
 
+  const isLoading = groupsLoading || (tasksLoading && groups.length === 0);
+
   useEffect(() => {
     if (user) {
       loadData();
@@ -255,12 +59,14 @@ export default function GroupsScreen() {
   }, [user]);
 
   const loadData = async () => {
-    if (user) {
-      await fetchGroups(user.id, isTeacher);
-      // Fetch tasks for all groups
-      for (const group of groups) {
-        await fetchTasks(group.id);
-      }
+    if (!user) return;
+
+    await fetchGroups(user.id, isTeacher);
+
+    const latestGroups = useGroupStore.getState().groups;
+    const groupIds = latestGroups.map(g => g.id);
+    if (groupIds.length > 0) {
+      await useTaskStore.getState().fetchTasksByGroupIds(groupIds);
     }
   };
 
@@ -285,10 +91,11 @@ export default function GroupsScreen() {
         // Guruh yaratilgandan keyin ma'lumotlarni yangilash
         await loadData();
         // Guruh ID sini ko'rsatish
-        Alert.alert(
-          'Guruh yaratildi',
-          `Guruh ID: ${result.groupId}\n\nBu ID ni talabalarga bering`,
-          [{ text: 'OK' }],
+        const newGroupId = result.groupId || '';
+        await Clipboard.setStringAsync(newGroupId);
+        showToast(
+          `Guruh yaratildi. ID: ${newGroupId} (Nusxalandi)`,
+          'success',
         );
       } else {
         setError(result.error || 'Guruh yaratishda xatolik yuz berdi');
@@ -309,6 +116,9 @@ export default function GroupsScreen() {
         setJoinModalVisible(false);
         // Guruhga qo'shilgandan keyin ma'lumotlarni yangilash
         await loadData();
+        if (result.group) {
+          setExpandedGroup(result.group.id);
+        }
       } else {
         setError(result.error || "Guruhga qo'shilishda xatolik yuz berdi");
       }
@@ -358,7 +168,7 @@ export default function GroupsScreen() {
         setTaskModalVisible(false);
         setSelectedTask(null);
       } catch (error: any) {
-        Alert.alert('Xatolik', error.message);
+        showToast(error.message, 'error');
       }
     }
   };
@@ -369,7 +179,7 @@ export default function GroupsScreen() {
       setTaskModalVisible(true);
     } else {
       // Student uchun expand/collapse qilish
-      toggleGroupExpansion(group.id);
+      await toggleGroupExpansion(group.id);
     }
   };
 
@@ -382,8 +192,19 @@ export default function GroupsScreen() {
     }
   };
 
-  const toggleGroupExpansion = (groupId: string) => {
-    setExpandedGroup(expandedGroup === groupId ? null : groupId);
+  const toggleGroupExpansion = async (groupId: string) => {
+    const isNowExpanded = expandedGroup !== groupId;
+    setExpandedGroup(isNowExpanded ? groupId : null);
+    if (isNowExpanded) {
+      const hasTasks = tasks.some((task) => task.group_id === groupId);
+      if (!hasTasks) {
+        try {
+          await fetchTasks(groupId);
+        } catch (error) {
+          console.warn('[Groups] Failed to fetch tasks for group', groupId, error);
+        }
+      }
+    }
   };
 
   const formatDate = (dateString: string) => {
@@ -398,6 +219,14 @@ export default function GroupsScreen() {
   const getGroupTasks = (groupId: string) => {
     return tasks.filter((task) => task.group_id === groupId);
   };
+
+  const renderSkeleton = () => (
+    <View style={{ padding: 10 }}>
+        <Skeleton width="100%" height={100} borderRadius={16} style={{ marginBottom: 15 }} />
+        <Skeleton width="100%" height={100} borderRadius={16} style={{ marginBottom: 15 }} />
+        <Skeleton width="100%" height={100} borderRadius={16} style={{ marginBottom: 15 }} />
+    </View>
+  );
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -422,7 +251,9 @@ export default function GroupsScreen() {
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
       >
-        {groups.length > 0 ? (
+        {isLoading && !refreshing ? (
+            renderSkeleton()
+        ) : groups.length > 0 ? (
           groups.map((group) => (
             <View key={group.id} style={styles.groupContainer}>
               <Card
@@ -447,7 +278,7 @@ export default function GroupsScreen() {
                       style={styles.copyButton}
                       onPress={() => {
                         Clipboard.setString(group.id);
-                        Alert.alert('Nusxa olindi', 'Guruh ID si nusxa olindi');
+                        showToast('Guruh ID si nusxa olindi', 'success');
                       }}
                     >
                       <Text style={styles.copyButtonText}>ID: {group.id}</Text>
@@ -628,7 +459,7 @@ export default function GroupsScreen() {
           setSelectedTask(null);
         }}
         onSubmit={selectedTask ? handleUpdateTask : handleCreateTask}
-        initialData={selectedTask}
+        initialData={selectedTask || undefined}
       />
     </SafeAreaView>
   );

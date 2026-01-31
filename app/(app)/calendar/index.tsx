@@ -12,6 +12,7 @@ import { COLORS, FONTS, FONT_SIZES, SPACING } from '@/constants/Theme';
 import { useAuth } from '@/hooks/useAuth';
 import Card from '@/components/ui/Card';
 import { useTaskStore } from '@/hooks/useTaskStore';
+import { useGroupStore } from '@/hooks/useGroupStore';
 import { Task } from '@/lib/supabase';
 import { Calendar as CalendarIcon, FileText } from 'lucide-react-native';
 import { Calendar } from 'react-native-calendars';
@@ -19,6 +20,7 @@ import { Calendar } from 'react-native-calendars';
 export default function CalendarScreen() {
   const { user, isTeacher } = useAuth();
   const { tasks, fetchTasks } = useTaskStore();
+  const { groups, fetchGroups } = useGroupStore();
   const [refreshing, setRefreshing] = useState(false);
   const [selectedDate, setSelectedDate] = useState(
     new Date().toISOString().split('T')[0],
@@ -26,19 +28,29 @@ export default function CalendarScreen() {
   const [markedDates, setMarkedDates] = useState({});
 
   useEffect(() => {
-    loadData();
-  }, []);
+    if (user) {
+      loadData();
+    }
+  }, [user]);
 
   const loadData = async () => {
-    if (user) {
-      await fetchTasks();
-      updateMarkedDates();
-    }
+    if (!user) return;
+    
+    // Avval guruhlarni yuklash
+    await fetchGroups(user.id, isTeacher);
+    const currentGroups = useGroupStore.getState().groups;
+    
+    // Har bir guruh uchun vazifalarni yuklash
+    await Promise.all(currentGroups.map((group) => fetchTasks(group.id)));
+    
+    // Marked dates ni yangilash
+    updateMarkedDates();
   };
 
   const updateMarkedDates = () => {
+    const currentTasks = useTaskStore.getState().tasks;
     const marked: any = {};
-    tasks.forEach((task) => {
+    currentTasks.forEach((task) => {
       const date = task.due_date.split('T')[0];
       marked[date] = {
         marked: true,
@@ -62,7 +74,8 @@ export default function CalendarScreen() {
   };
 
   const getTasksForDate = (date: string) => {
-    return tasks.filter((task) => task.due_date.split('T')[0] === date);
+    const currentTasks = useTaskStore.getState().tasks;
+    return currentTasks.filter((task) => task.due_date.split('T')[0] === date);
   };
 
   const formatDate = (dateString: string) => {

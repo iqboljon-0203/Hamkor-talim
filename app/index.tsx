@@ -1,8 +1,7 @@
 import { Buffer } from 'buffer';
 global.Buffer = global.Buffer || Buffer;
 
-import { useEffect } from 'react';
-import { Redirect } from 'expo-router';
+import { Redirect, Stack } from 'expo-router';
 import { useAuth } from '@/hooks/useAuth';
 import { View, ActivityIndicator } from 'react-native';
 import { COLORS } from '@/constants/Theme';
@@ -10,7 +9,6 @@ import { COLORS } from '@/constants/Theme';
 export default function Index() {
   const { session, loading, user } = useAuth();
 
-  // Loading state
   if (loading) {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
@@ -19,16 +17,9 @@ export default function Index() {
     );
   }
 
-  // Not authenticated - redirect to auth
-  if (!session) {
-    return <Redirect href="/(auth)" />;
+  if (session && user) {
+    return <Redirect href="/(app)" />;
   }
 
-  // Authenticated but no user profile - could happen during signup process
-  if (!user) {
-    return <Redirect href="/(auth)" />;
-  }
-
-  // Redirect based on role
-  return <Redirect href="/(app)" />;
+  return <Redirect href="/(auth)" />;
 }

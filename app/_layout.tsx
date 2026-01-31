@@ -13,9 +13,22 @@ import { View, Text, ActivityIndicator } from 'react-native';
 import { COLORS, FONTS } from '@/constants/Theme';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { enableScreens } from 'react-native-screens';
+import { PaperProvider, MD3LightTheme as DefaultTheme } from 'react-native-paper';
+import { ToastProvider } from '@/context/ToastContext';
 
 // Enable screens
 enableScreens();
+
+const theme = {
+  ...DefaultTheme,
+  colors: {
+    ...DefaultTheme.colors,
+    primary: COLORS.primary[500],
+    secondary: COLORS.secondary[500],
+    error: COLORS.error[500],
+    background: COLORS.gray[50], // Slightly off-white background
+  },
+};
 
 export default function RootLayout() {
   useFrameworkReady();
@@ -39,14 +52,18 @@ export default function RootLayout() {
 
   return (
     <SafeAreaProvider>
-      <AuthProvider>
-        <Stack screenOptions={{ headerShown: false }}>
-          <Stack.Screen name="(auth)" options={{ headerShown: false }} />
-          <Stack.Screen name="(app)" options={{ headerShown: false }} />
-          <Stack.Screen name="+not-found" />
-        </Stack>
-        <StatusBar style="auto" />
-      </AuthProvider>
+      <PaperProvider theme={theme}>
+        <ToastProvider>
+          <AuthProvider>
+            <Stack screenOptions={{ headerShown: false }}>
+              <Stack.Screen name="(auth)" options={{ headerShown: false }} />
+              <Stack.Screen name="(app)" options={{ headerShown: false }} />
+              <Stack.Screen name="+not-found" />
+            </Stack>
+            <StatusBar style="auto" />
+          </AuthProvider>
+        </ToastProvider>
+      </PaperProvider>
     </SafeAreaProvider>
   );
 }

@@ -160,7 +160,7 @@ const Button: React.FC<ButtonProps> = ({
       ) : (
         <>
           {icon && <>{icon}</>}
-          <Text style={[textStyles, textStyle, icon && { marginLeft: SPACING.xs }]}>
+          <Text style={[textStyles, textStyle, icon ? { marginLeft: SPACING.xs } : undefined]}>
             {title}
           </Text>
         </>

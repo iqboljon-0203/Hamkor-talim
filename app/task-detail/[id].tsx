@@ -5,12 +5,12 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Alert,
   Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { COLORS, FONTS, FONT_SIZES, SPACING } from '@/constants/Theme';
 import { useAuth } from '@/hooks/useAuth';
+import { useToast } from '@/context/ToastContext';
 import Card from '@/components/ui/Card';
 import { useTaskStore } from '@/hooks/useTaskStore';
 import { useGroupStore } from '@/hooks/useGroupStore';
@@ -31,6 +31,7 @@ import Input from '@/components/ui/Input';
 export default function TaskDetailScreen() {
   const { id } = useLocalSearchParams();
   const { user, isTeacher } = useAuth();
+  const { showToast } = useToast();
   const {
     tasks,
     getTaskDetails,
@@ -65,7 +66,7 @@ export default function TaskDetailScreen() {
           }
         }
       } catch (error) {
-        Alert.alert('Xatolik', 'Vazifani yuklashda xatolik yuz berdi');
+        showToast('Vazifani yuklashda xatolik yuz berdi', 'error');
       } finally {
         setLoading(false);
       }
@@ -85,7 +86,7 @@ export default function TaskDetailScreen() {
       day: 'numeric',
     });
   };
-
+// ...
   const handleFilePick = async () => {
     try {
       const result = await DocumentPicker.getDocumentAsync({
@@ -104,17 +105,17 @@ export default function TaskDetailScreen() {
         });
       }
     } catch (error) {
-      Alert.alert('Xatolik', 'Fayl tanlashda xatolik yuz berdi');
+      showToast('Fayl tanlashda xatolik yuz berdi', 'error');
     }
   };
 
   const handleSubmit = async () => {
     if (!description.trim()) {
-      Alert.alert('Xatolik', 'Iltimos, javob tavsifini kiriting');
+      showToast('Iltimos, javob tavsifini kiriting', 'error');
       return;
     }
     if (!selectedFile) {
-      Alert.alert('Xatolik', 'Fayl tanlash majburiy!');
+      showToast('Fayl tanlash majburiy!', 'error');
       return;
     }
     if (!task || !user) return;
@@ -128,13 +129,13 @@ export default function TaskDetailScreen() {
         description,
       );
       if (result.success) {
-        Alert.alert('Muvaffaqiyatli', 'Javobingiz yuborildi');
+        showToast('Javobingiz yuborildi', 'success');
         router.back();
       } else {
         throw new Error(result.error || 'Javob yuborishda xatolik yuz berdi');
       }
     } catch (error: any) {
-      Alert.alert('Xatolik', error.message);
+      showToast(error.message, 'error');
     } finally {
       setIsSubmitting(false);
     }
@@ -145,27 +146,27 @@ export default function TaskDetailScreen() {
       try {
         await Linking.openURL(task.file_url);
       } catch (error) {
-        Alert.alert('Xatolik', 'Faylni ochishda xatolik yuz berdi');
+        showToast('Faylni ochishda xatolik yuz berdi', 'error');
       }
     }
   };
 
   const handleRateSubmission = async (submissionId: string) => {
     if (!rating) {
-      Alert.alert('Xatolik', 'Iltimos, baho bering');
+      showToast('Iltimos, baho bering', 'error');
       return;
     }
 
     try {
       const result = await rateSubmission(submissionId, rating, feedback);
       if (result.success) {
-        Alert.alert('Muvaffaqiyatli', 'Javob baholandi');
+        showToast('Javob baholandi', 'success');
         await loadTask(); // Javoblarni yangilash
       } else {
         throw new Error(result.error || 'Javobni baholashda xatolik yuz berdi');
       }
     } catch (error: any) {
-      Alert.alert('Xatolik', error.message);
+      showToast(error.message, 'error');
     }
   };
 

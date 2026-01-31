@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { supabase, Group, GroupMember } from '@/lib/supabase';
+import { useTaskStore } from '@/hooks/useTaskStore';
 
 interface GroupState {
   groups: Group[];
@@ -18,7 +19,7 @@ interface GroupState {
   joinGroup: (
     groupId: string,
     userId: string,
-  ) => Promise<{ success: boolean; error?: any }>;
+  ) => Promise<{ success: boolean; error?: any; group?: Group }>;
   leaveGroup: (
     groupId: string,
     userId: string,
@@ -34,6 +35,7 @@ export const useGroupStore = create<GroupState>((set, get) => ({
   error: null,
 
   fetchGroups: async (userId, isTeacher) => {
+    console.log('[GroupStore] fetchGroups start', { userId, isTeacher });
     set({ loading: true, error: null });
     try {
       let data = [];
@@ -49,12 +51,32 @@ export const useGroupStore = create<GroupState>((set, get) => ({
         data = teacherGroups;
       } else {
         // Fetch groups the student is a member of
-        const { data: memberships, error: membershipError } = await supabase
-          .from('group_members')
-          .select('group_id')
-          .eq('user_id', userId);
+        let memberships: any[] = [];
+        try {
+          const { data: membershipData, error: membershipError } = await supabase
+            .from('group_members')
+            .select('group_id')
+            .eq('user_id', userId);
 
-        if (membershipError) throw membershipError;
+          if (membershipError) {
+            // RLS recursion xatosini handle qilamiz
+            if (membershipError.code === '42P17') {
+              console.warn('[GroupStore] RLS recursion detected, using empty memberships');
+              memberships = [];
+            } else {
+              throw membershipError;
+            }
+          } else {
+            memberships = membershipData || [];
+          }
+        } catch (membershipError: any) {
+          if (membershipError.code === '42P17') {
+            console.warn('[GroupStore] RLS recursion in fetchGroups, continuing with empty list');
+            memberships = [];
+          } else {
+            throw membershipError;
+          }
+        }
 
         // Get the group details
         if (memberships.length > 0) {
@@ -69,8 +91,14 @@ export const useGroupStore = create<GroupState>((set, get) => ({
         }
       }
 
+      console.log('[GroupStore] fetchGroups success', {
+        count: data.length,
+      });
       set({ groups: data, loading: false });
+      const allowedGroupIds = (data || []).map((group: Group) => group.id);
+      useTaskStore.getState().restrictTasksToGroups(allowedGroupIds);
     } catch (error: any) {
+      console.error('[GroupStore] fetchGroups error', error);
       set({ error: error.message, loading: false });
     }
   },
@@ -121,38 +149,95 @@ export const useGroupStore = create<GroupState>((set, get) => ({
 
   joinGroup: async (groupId, userId) => {
     try {
-      // Avval guruh mavjudligini tekshiramiz
-      const { data: group, error: groupError } = await supabase
-        .from('groups')
-        .select('id')
-        .eq('id', groupId)
-        .single();
-
-      if (groupError) throw new Error('Guruh topilmadi');
+      console.log('[GroupStore] joinGroup start', { groupId, userId });
+      const trimmedGroupId = groupId.trim();
+      if (!trimmedGroupId) {
+        throw new Error('Guruh ID kiritilmadi');
+      }
 
       // Talaba allaqachon guruhga qo'shilganligini tekshiramiz
-      const { data: existingMember, error: memberError } = await supabase
-        .from('group_members')
-        .select('id')
-        .eq('group_id', groupId)
-        .eq('user_id', userId)
-        .single();
+      const { data: groupData, error: groupError } = await supabase
+        .from('groups')
+        .select('*')
+        .eq('id', trimmedGroupId)
+        .maybeSingle();
 
-      if (existingMember)
+      if (groupError && groupError.code !== 'PGRST116') {
+        console.error('[GroupStore] joinGroup group lookup error', groupError);
+        throw groupError;
+      }
+      if (!groupData) {
+        throw new Error('Guruh topilmadi');
+      }
+
+      // RLS recursion xatosini oldini olish uchun
+      // Avval tekshirishni skip qilamiz va to'g'ridan-to'g'ri insert qilamiz
+      let existingMembers: any[] = [];
+      try {
+        const { data: members, error: memberError } = await supabase
+          .from('group_members')
+          .select('id')
+          .eq('group_id', trimmedGroupId)
+          .eq('user_id', userId);
+
+        if (memberError && memberError.code !== '42P17') {
+          // RLS recursion xatosi bo'lmasa, xatoni throw qilamiz
+          console.error('[GroupStore] joinGroup member check error', memberError);
+          throw memberError;
+        }
+        
+        // RLS recursion xatosi bo'lsa, existingMembers bo'sh qoladi
+        if (members) {
+          existingMembers = members;
+        }
+      } catch (checkError: any) {
+        // RLS recursion xatosi bo'lsa, davom etamiz
+        if (checkError.code !== '42P17') {
+          throw checkError;
+        }
+        console.warn('[GroupStore] RLS recursion detected during member check, continuing...');
+      }
+
+      if (existingMembers && existingMembers.length > 0) {
         throw new Error("Siz allaqachon bu guruhga qo'shilgansiz");
+      }
 
       // Talabani guruhga qo'shamiz
       const { error } = await supabase
         .from('group_members')
-        .insert([{ group_id: groupId, user_id: userId }]);
+        .insert([{ group_id: trimmedGroupId, user_id: userId }]);
 
-      if (error) throw error;
+      if (error) {
+        console.error('[GroupStore] joinGroup insert error', error);
+        
+        // RLS recursion xatosini handle qilamiz
+        if (error.code === '42P17') {
+          return {
+            success: false,
+            error: 'RLS policy xatosi. Iltimos, Supabase dashboard\'da group_members jadvali uchun policy\'larni tekshiring.',
+          };
+        }
+        
+        if (error.code === '23503' || error.message?.includes('foreign key')) {
+          throw new Error('Guruh topilmadi');
+        }
+        
+        // Unique constraint xatosi (allaqachon qo'shilgan)
+        if (error.code === '23505') {
+          throw new Error("Siz allaqachon bu guruhga qo'shilgansiz");
+        }
+        
+        throw error;
+      }
 
       // Guruhlarni yangilaymiz
       await get().fetchGroups(userId, false);
+      await useTaskStore.getState().fetchTasks(trimmedGroupId);
 
-      return { success: true };
+      console.log('[GroupStore] joinGroup success', { groupId: trimmedGroupId });
+      return { success: true, group: groupData as Group };
     } catch (error: any) {
+      console.error('[GroupStore] joinGroup error', error);
       return { success: false, error: error.message };
     }
   },
@@ -178,12 +263,22 @@ export const useGroupStore = create<GroupState>((set, get) => ({
 
   getGroupMembers: async (groupId) => {
     try {
-      const { data: memberIds, error: memberError } = await supabase
+      let memberIds: any[] = [];
+      const { data: memberData, error: memberError } = await supabase
         .from('group_members')
         .select('user_id')
         .eq('group_id', groupId);
 
-      if (memberError) throw memberError;
+      if (memberError) {
+        // RLS recursion xatosini handle qilamiz
+        if (memberError.code === '42P17') {
+          console.warn('[GroupStore] RLS recursion in getGroupMembers');
+          return { members: [], error: 'RLS policy xatosi' };
+        }
+        throw memberError;
+      }
+
+      memberIds = memberData || [];
 
       if (memberIds.length === 0) {
         return { members: [] };
@@ -196,9 +291,16 @@ export const useGroupStore = create<GroupState>((set, get) => ({
         .select('*')
         .in('id', userIds);
 
-      if (profileError) throw profileError;
+      if (profileError) {
+        // RLS recursion xatosini handle qilamiz
+        if (profileError.code === '42P17') {
+          console.warn('[GroupStore] RLS recursion in profiles query');
+          return { members: [] };
+        }
+        throw profileError;
+      }
 
-      return { members };
+      return { members: members || [] };
     } catch (error: any) {
       return { members: [], error: error.message };
     }

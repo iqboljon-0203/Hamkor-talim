@@ -8,6 +8,8 @@ import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Mail, Lock, ArrowLeft, User } from 'lucide-react-native';
 import { UserRole } from '@/lib/supabase';
+import * as Linking from 'expo-linking';
+import { useToast } from '@/context/ToastContext';
 
 export default function SignupScreen() {
   const [fullName, setFullName] = useState('');
@@ -19,6 +21,7 @@ export default function SignupScreen() {
   const [loading, setLoading] = useState(false);
 
   const { signUp } = useAuth();
+  const { showToast } = useToast();
 
   const handleSignup = async () => {
     // Validate inputs
@@ -41,12 +44,18 @@ export default function SignupScreen() {
     setError('');
 
     try {
-      const { error: signUpError } = await signUp(email, password, role, fullName);
+      const redirectUrl = Linking.createURL('/'); 
+      console.log('Redirect URL:', redirectUrl);
+
+      // Pass redirectUrl to signUp
+      const { error: signUpError } = await signUp(email, password, role, fullName, redirectUrl);
       
       if (signUpError) {
         setError(signUpError.message || 'Failed to create account');
       } else {
-        router.replace('/(app)');
+        // Confirmation email sent
+        showToast("Tasdiqlash havolasi email manzilingizga yuborildi. Iltimos, pochta qutingizni tekshiring.", 'success');
+        router.push('/login');
       }
     } catch (err: any) {
       setError(err.message || 'An unexpected error occurred');

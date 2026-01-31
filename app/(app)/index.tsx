@@ -6,14 +6,13 @@ import {
   ScrollView,
   TouchableOpacity,
   RefreshControl,
-  Alert,
   Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Theme from '@/constants/Theme';
 import { useAuth } from '@/hooks/useAuth';
+import { useToast } from '@/context/ToastContext';
 import Card from '@/components/ui/Card';
-import Badge from '@/components/ui/Badge';
 import { useTaskStore } from '@/hooks/useTaskStore';
 import { useGroupStore } from '@/hooks/useGroupStore';
 import { Task, Group, Submission } from '@/lib/supabase';
@@ -23,12 +22,13 @@ import {
   CheckCircle2,
   AlertCircle,
   BookOpen,
-  ChevronRight,
   FileText,
-  Edit2,
   Calendar,
+  Users,
+  File,
 } from 'lucide-react-native';
 import TaskModal from '@/components/ui/TaskModal';
+import Skeleton from '@/components/ui/Skeleton';
 
 const { COLORS, FONTS, FONT_SIZES, SPACING, SHADOWS } = Theme;
 
@@ -41,13 +41,18 @@ export default function HomeScreen() {
     updateTask,
     submissions,
     fetchSubmissions,
+    loading: tasksLoading,
   } = useTaskStore();
-  const { groups, fetchGroups } = useGroupStore();
+  const { showToast } = useToast();
+  const { groups, fetchGroups, loading: groupsLoading } = useGroupStore();
   const [refreshing, setRefreshing] = useState(false);
   const [upcomingTasks, setUpcomingTasks] = useState<Task[]>([]);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [isTaskModalVisible, setTaskModalVisible] = useState(false);
   const [recentSubmissions, setRecentSubmissions] = useState<Submission[]>([]);
+  const [expandedGroup, setExpandedGroup] = useState<string | null>(null);
+
+  const isLoading = tasksLoading || groupsLoading;
 
   useEffect(() => {
     if (user) {
@@ -61,10 +66,32 @@ export default function HomeScreen() {
     await fetchGroups(user.id, isTeacher);
     const currentGroups = useGroupStore.getState().groups;
 
-    await Promise.all(currentGroups.map((group) => fetchTasks(group.id)));
-    const currentTasks = useTaskStore.getState().tasks;
+    if (isTeacher) {
+      const teacherGroups = currentGroups.filter(
+        (group) => group.created_by === user.id,
+      );
 
-    const allTaskIds = currentTasks.map((task) => task.id);
+      // Optimized: Fetch all tasks for teacher's groups in one go
+      const groupIds = teacherGroups.map(g => g.id);
+      if (groupIds.length > 0) {
+        await useTaskStore.getState().fetchTasksByGroupIds(groupIds);
+      }
+    } else {
+      const studentGroupIds = currentGroups.map((group) => group.id);
+       // Optimized: Fetch all tasks for student's groups in one go
+      if (studentGroupIds.length > 0) {
+        await useTaskStore.getState().fetchTasksByGroupIds(studentGroupIds);
+      }
+    }
+
+    const currentTasks = useTaskStore.getState().tasks;
+    const visibleTasks = isTeacher
+      ? currentTasks.filter((task) => task.created_by === user.id)
+      : currentTasks.filter((task) =>
+          currentGroups.some((group) => group.id === task.group_id),
+        );
+
+    const allTaskIds = visibleTasks.map((task) => task.id);
     if (allTaskIds.length > 0) {
       if (isTeacher) {
         await fetchSubmissions(allTaskIds);
@@ -106,7 +133,20 @@ export default function HomeScreen() {
     const nextWeek = new Date();
     nextWeek.setDate(now.getDate() + 7);
 
-    const upcoming = tasks.filter((task) => {
+    let filteredTasks = tasks;
+
+    if (isTeacher) {
+      filteredTasks = tasks.filter((task) => task.created_by === user?.id);
+    } else if (user) {
+      const currentGroups = useGroupStore.getState().groups;
+      const studentGroupIds = currentGroups.map((group) => group.id);
+
+      filteredTasks = tasks.filter((task) =>
+        studentGroupIds.includes(task.group_id),
+      );
+    }
+
+    const upcoming = filteredTasks.filter((task) => {
       const dueDate = new Date(task.due_date);
       return dueDate >= now && dueDate <= nextWeek;
     });
@@ -116,7 +156,7 @@ export default function HomeScreen() {
       (a, b) => new Date(a.due_date).getTime() - new Date(b.due_date).getTime(),
     );
 
-    setUpcomingTasks(upcoming.slice(0, 3)); // Show top 3 upcoming tasks
+    setUpcomingTasks(upcoming);
   }, [tasks]);
 
   const onRefresh = async () => {
@@ -170,7 +210,7 @@ export default function HomeScreen() {
         setTaskModalVisible(false);
         setSelectedTask(null);
       } catch (error: any) {
-        Alert.alert('Xatolik', error.message);
+        showToast(`Xatolik: ${error.message}`, 'error');
       }
     }
   };
@@ -201,18 +241,36 @@ export default function HomeScreen() {
         await loadData();
         setTaskModalVisible(false);
       } catch (error: any) {
-        Alert.alert('Xatolik', error.message);
+        showToast(`Xatolik: ${error.message}`, 'error');
       }
     }
   };
 
+  const toggleGroupExpansion = (groupId: string) => {
+    setExpandedGroup(expandedGroup === groupId ? null : groupId);
+  };
+
+  const getGroupTasks = (groupId: string) => {
+    return tasks.filter((task) => task.group_id === groupId);
+  };
+
   // Yaqinlashgan 3 ta vazifani olish uchun
-  const sortedTasks = tasks
-    .filter((task) => new Date(task.due_date) >= new Date())
-    .sort(
-      (a, b) => new Date(a.due_date).getTime() - new Date(b.due_date).getTime(),
-    )
-    .slice(0, 3);
+  const visibleUpcomingTasks = upcomingTasks.slice(0, 3);
+
+  const renderSkeleton = () => (
+    <View style={styles.sectionContainer}>
+        <View style={{ marginBottom: 20 }}>
+            <Skeleton width={200} height={24} style={{ marginBottom: 15 }} />
+            <Skeleton width="100%" height={120} borderRadius={16} style={{ marginBottom: 12 }} />
+            <Skeleton width="100%" height={120} borderRadius={16} />
+        </View>
+        <View>
+            <Skeleton width={150} height={24} style={{ marginBottom: 15 }} />
+            <Skeleton width="100%" height={80} borderRadius={10} style={{ marginBottom: 10 }} />
+            <Skeleton width="100%" height={80} borderRadius={10} />
+        </View>
+    </View>
+  );
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -276,125 +334,132 @@ export default function HomeScreen() {
           </View>
         </View>
 
-        <View style={styles.sectionContainer}>
-          <Text style={styles.sectionTitle}>Yaqinlashgan Vazifalar</Text>
+        {isLoading && !refreshing ? (
+            renderSkeleton()
+        ) : (
+            <>
+                <View style={styles.sectionContainer}>
+                <Text style={styles.sectionTitle}>Yaqinlashgan Vazifalar</Text>
 
-          {sortedTasks.length > 0 ? (
-            sortedTasks.map((task) => (
-              <Card
-                key={task.id}
-                style={styles.taskCard}
-                onPress={() => handleTaskPress(task)}
-              >
-                <View style={styles.taskHeader}>
-                  <Text style={styles.taskTitle}>{task.title}</Text>
-                </View>
-                <Text style={styles.taskGroup}>
-                  {getGroupById(task.group_id)?.name || "Noma'lum guruh"}
-                </Text>
-                <Text numberOfLines={2} style={styles.taskDescription}>
-                  {task.description}
-                </Text>
-                <View style={styles.taskMeta}>
-                  <Calendar size={16} color={COLORS.gray[500]} />
-                  <Text style={styles.taskDate}>
-                    Muddat: {formatDate(task.due_date)}
-                  </Text>
-                </View>
-                {isDueSoon(task.due_date) && (
-                  <View style={styles.dueSoonContainer}>
-                    <AlertCircle size={16} color={COLORS.warning[500]} />
-                    <Text style={styles.dueSoonText}>
-                      Tez orada muddati tugaydi
-                    </Text>
-                  </View>
-                )}
-              </Card>
-            ))
-          ) : (
-            <View style={styles.emptyContainer}>
-              <Text style={styles.emptyText}>Yaqinlashgan vazifalar yo'q</Text>
-            </View>
-          )}
-        </View>
-
-        <View style={styles.sectionContainer}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>
-              {isTeacher ? 'Oxirgi javoblar' : "So'nggi faollik"}
-            </Text>
-          </View>
-
-          {isTeacher ? (
-            recentSubmissions.length > 0 ? (
-              recentSubmissions.map((submission) => (
-                <View key={submission.id} style={styles.submissionCard}>
-                  <View style={styles.submissionHeader}>
-                    <Text style={styles.submissionTitle}>
-                      {tasks.find((t) => t.id === submission.task_id)?.title ||
-                        'Unknown Task'}
-                    </Text>
-                    <Text style={styles.submissionDate}>
-                      {new Date(submission.submitted_at).toLocaleDateString()}
-                    </Text>
-                  </View>
-                  <Text style={styles.submissionDescription}>
-                    {submission.content || 'No description provided'}
-                  </Text>
-                  {submission.file_url && (
-                    <TouchableOpacity
-                      style={styles.submissionFile}
-                      onPress={() => Linking.openURL(submission.file_url!)}
+                {visibleUpcomingTasks.length > 0 ? (
+                    visibleUpcomingTasks.map((task) => (
+                    <Card
+                        key={task.id}
+                        style={styles.taskCard}
+                        onPress={() => handleTaskPress(task)}
                     >
-                      <FileText size={16} color={COLORS.primary[500]} />
-                      <Text style={styles.submissionFileText}>
-                        View Submission File
-                      </Text>
-                    </TouchableOpacity>
-                  )}
-                </View>
-              ))
-            ) : (
-              <View style={styles.emptyContainer}>
-                <Text style={styles.emptyText}>No recent submissions</Text>
-              </View>
-            )
-          ) : recentSubmissions.length > 0 ? (
-            recentSubmissions.map((submission) => (
-              <View key={submission.id} style={styles.submissionCard}>
-                <View style={styles.submissionHeader}>
-                  <Text style={styles.submissionTitle}>
-                    {tasks.find((t) => t.id === submission.task_id)?.title ||
-                      'Nomaʼlum vazifa'}
-                  </Text>
-                  <Text style={styles.submissionDate}>
-                    {new Date(submission.submitted_at).toLocaleDateString()}
-                  </Text>
-                </View>
-                <Text style={styles.submissionDescription}>
-                  {submission.content || 'Izoh yoʻq'}
-                </Text>
-                {submission.file_url && (
-                  <TouchableOpacity
-                    style={styles.submissionFile}
-                    onPress={() => Linking.openURL(submission.file_url!)}
-                  >
-                    <FileText size={16} color={COLORS.primary[500]} />
-                    <Text style={styles.submissionFileText}>
-                      Yuborilgan faylni ko'rish
-                    </Text>
-                  </TouchableOpacity>
+                        <View style={styles.taskHeader}>
+                        <Text style={styles.taskTitle}>{task.title}</Text>
+                        </View>
+                        <Text style={styles.taskGroup}>
+                        {getGroupById(task.group_id)?.name || "Noma'lum guruh"}
+                        </Text>
+                        <Text numberOfLines={2} style={styles.taskDescription}>
+                        {task.description}
+                        </Text>
+                        <View style={styles.taskMeta}>
+                        <Calendar size={16} color={COLORS.gray[500]} />
+                        <Text style={styles.taskDate}>
+                            Muddat: {formatDate(task.due_date)}
+                        </Text>
+                        </View>
+                        {isDueSoon(task.due_date) && (
+                        <View style={styles.dueSoonContainer}>
+                            <AlertCircle size={16} color={COLORS.warning[500]} />
+                            <Text style={styles.dueSoonText}>
+                            Tez orada muddati tugaydi
+                            </Text>
+                        </View>
+                        )}
+                    </Card>
+                    ))
+                ) : (
+                    <View style={styles.emptyContainer}>
+                    <Text style={styles.emptyText}>Yaqinlashgan vazifalar yo'q</Text>
+                    </View>
                 )}
-              </View>
-            ))
-          ) : (
-            <View style={styles.emptyContainer}>
-              <Text style={styles.emptyText}>
-                Sizda hali topshirilgan vazifalar yo'q
-              </Text>
-            </View>
-          )}
-        </View>
+                </View>
+
+                <View style={styles.sectionContainer}>
+                <View style={styles.sectionHeader}>
+                    <Text style={styles.sectionTitle}>
+                    {isTeacher ? 'Oxirgi javoblar' : "So'nggi faollik"}
+                    </Text>
+                </View>
+
+                {isTeacher ? (
+                    recentSubmissions.length > 0 ? (
+                    recentSubmissions.map((submission) => (
+                        <View key={submission.id} style={styles.submissionCard}>
+                        <View style={styles.submissionHeader}>
+                            <Text style={styles.submissionTitle}>
+                            {tasks.find((t) => t.id === submission.task_id)?.title ||
+                                'Unknown Task'}
+                            </Text>
+                            <Text style={styles.submissionDate}>
+                            {new Date(submission.submitted_at).toLocaleDateString()}
+                            </Text>
+                        </View>
+                        <Text style={styles.submissionDescription}>
+                            {submission.content || 'No description provided'}
+                        </Text>
+                        {submission.file_url && (
+                            <TouchableOpacity
+                            style={styles.submissionFile}
+                            onPress={() => Linking.openURL(submission.file_url!)}
+                            >
+                            <FileText size={16} color={COLORS.primary[500]} />
+                            <Text style={styles.submissionFileText}>
+                                View Submission File
+                            </Text>
+                            </TouchableOpacity>
+                        )}
+                        </View>
+                    ))
+                    ) : (
+                    <View style={styles.emptyContainer}>
+                        <Text style={styles.emptyText}>No recent submissions</Text>
+                    </View>
+                    )
+                ) : recentSubmissions.length > 0 ? (
+                    recentSubmissions.map((submission) => (
+                    <View key={submission.id} style={styles.submissionCard}>
+                        <View style={styles.submissionHeader}>
+                        <Text style={styles.submissionTitle}>
+                            {tasks.find((t) => t.id === submission.task_id)?.title ||
+                            'Nomaʼlum vazifa'}
+                        </Text>
+                        <Text style={styles.submissionDate}>
+                            {new Date(submission.submitted_at).toLocaleDateString()}
+                        </Text>
+                        </View>
+                        <Text style={styles.submissionDescription}>
+                        {submission.content || 'Izoh yoʻq'}
+                        </Text>
+                        {submission.file_url && (
+                        <TouchableOpacity
+                            style={styles.submissionFile}
+                            onPress={() => Linking.openURL(submission.file_url!)}
+                        >
+                            <FileText size={16} color={COLORS.primary[500]} />
+                            <Text style={styles.submissionFileText}>
+                            Yuborilgan faylni ko'rish
+                            </Text>
+                        </TouchableOpacity>
+                        )}
+                    </View>
+                    ))
+                ) : (
+                    <View style={styles.emptyContainer}>
+                    <Text style={styles.emptyText}>
+                        Sizda hali topshirilgan vazifalar yo'q
+                    </Text>
+                    </View>
+                )}
+                </View>
+            </>
+        )}
+
       </ScrollView>
 
       <TaskModal
@@ -635,5 +700,73 @@ const styles = StyleSheet.create({
     fontSize: FONT_SIZES.sm,
     color: COLORS.primary[700],
     marginLeft: SPACING.xs,
+  },
+  groupContainer: {
+    marginBottom: SPACING.md,
+  },
+  groupCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: SPACING.md,
+  },
+  groupIconContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: COLORS.primary[100],
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: SPACING.md,
+  },
+  groupInfo: {
+    flex: 1,
+  },
+  groupName: {
+    fontFamily: FONTS.medium,
+    fontSize: FONT_SIZES.md,
+    color: COLORS.gray[800],
+  },
+  groupDescription: {
+    fontFamily: FONTS.regular,
+    fontSize: FONT_SIZES.sm,
+    color: COLORS.gray[600],
+    marginTop: 2,
+  },
+  groupDate: {
+    fontFamily: FONTS.regular,
+    fontSize: FONT_SIZES.xs,
+    color: COLORS.gray[500],
+    marginTop: 2,
+  },
+  expandIcon: {
+    fontFamily: FONTS.medium,
+    fontSize: FONT_SIZES.md,
+    color: COLORS.gray[500],
+  },
+  tasksContainer: {
+    marginTop: SPACING.xs,
+    backgroundColor: COLORS.white,
+    borderRadius: 12,
+    padding: SPACING.sm,
+    borderWidth: 1,
+    borderColor: COLORS.gray[200],
+  },
+  taskItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: SPACING.sm,
+    borderRadius: 8,
+    backgroundColor: COLORS.gray[50],
+    marginBottom: SPACING.xs,
+  },
+
+  emptyTaskContainer: {
+    padding: SPACING.md,
+    alignItems: 'center',
+  },
+  emptyTaskText: {
+    fontFamily: FONTS.regular,
+    fontSize: FONT_SIZES.sm,
+    color: COLORS.gray[500],
   },
 });

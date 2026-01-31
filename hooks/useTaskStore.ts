@@ -14,9 +14,11 @@ interface TaskState {
   taskStatuses: TaskStatus[];
   loading: boolean;
   error: string | null;
+  restrictTasksToGroups: (groupIds: string[]) => void;
 
   // Task related methods
   fetchTasks: (groupId: string) => Promise<void>;
+  fetchTasksByGroupIds: (groupIds: string[]) => Promise<void>;
   createTask: (
     task: Partial<Task>,
     file?: { uri: string; type: string; name: string },
@@ -62,8 +64,21 @@ export const useTaskStore = create<TaskState>((set, get) => ({
   taskStatuses: [],
   loading: false,
   error: null,
+  restrictTasksToGroups: (groupIds) => {
+    if (!groupIds || groupIds.length === 0) {
+      set({ tasks: [] });
+      return;
+    }
+    const { tasks } = get();
+    const filteredTasks = tasks.filter((task) => groupIds.includes(task.group_id));
+    if (filteredTasks.length !== tasks.length) {
+      set({ tasks: filteredTasks });
+    }
+  },
 
   fetchTasks: async (groupId) => {
+    // This function is kept for backward compatibility but using the batch fetcher internally is better if possible.
+    // For now, let's keep it as single group fetch but improve state update.
     set({ loading: true, error: null });
     try {
       const { data, error } = await supabase
@@ -74,16 +89,14 @@ export const useTaskStore = create<TaskState>((set, get) => ({
 
       if (error) throw error;
 
-      // Eski tasklarni olib, yangi tasklarni qo'shib boramiz
       const { tasks } = get();
-      // Yangi tasklar massivini eski tasklar ustiga yozmaymiz, birlashtiramiz
-      const filteredOldTasks = tasks.filter((t) => t.group_id !== groupId);
-      const newTasks = [...filteredOldTasks, ...(data || [])];
-
-      // Vazifalarni muddat bo'yicha saralash
+      // Remove old tasks for this specific group to avoid duplicates, then add new ones
+      const otherGroupTasks = tasks.filter((t) => t.group_id !== groupId);
+      const newTasks = [...otherGroupTasks, ...(data || [])];
+      
+      // Sort all tasks
       newTasks.sort(
-        (a, b) =>
-          new Date(a.due_date).getTime() - new Date(b.due_date).getTime(),
+        (a, b) => new Date(a.due_date).getTime() - new Date(b.due_date).getTime(),
       );
 
       set({ tasks: newTasks, loading: false });
@@ -92,13 +105,42 @@ export const useTaskStore = create<TaskState>((set, get) => ({
     }
   },
 
+  // Optimized batch fetching
+  fetchTasksByGroupIds: async (groupIds: string[]) => {
+     if (!groupIds.length) return;
+     
+     set({ loading: true, error: null });
+     try {
+       const { data, error } = await supabase
+         .from('tasks')
+         .select('*')
+         .in('group_id', groupIds)
+         .order('due_date', { ascending: true });
+
+       if (error) throw error;
+
+       const { tasks } = get();
+       // Filter out tasks belonging to the requested groups (to replace them)
+       const otherTasks = tasks.filter(t => !groupIds.includes(t.group_id));
+       const allTasks = [...otherTasks, ...(data || [])];
+       
+       allTasks.sort(
+        (a, b) => new Date(a.due_date).getTime() - new Date(b.due_date).getTime(),
+       );
+
+       set({ tasks: allTasks, loading: false });
+     } catch (error: any) {
+        set({ error: error.message, loading: false });
+     }
+  },
+
   createTask: async (task, file) => {
     try {
       let fileUrl;
 
       if (file) {
         const filePath = `tasks/${Date.now()}_${file.name}`;
-        await uploadFile('task-files', filePath, file.uri, file.type);
+        await uploadFile('task-files', filePath, file.uri, file.type || 'application/octet-stream');
         fileUrl = getFileUrl('task-files', filePath);
       }
 
@@ -153,7 +195,7 @@ export const useTaskStore = create<TaskState>((set, get) => ({
       // Upload new file if provided
       if (file) {
         const filePath = `tasks/${Date.now()}_${file.name}`;
-        await uploadFile('task-files', filePath, file.uri, file.type);
+        await uploadFile('task-files', filePath, file.uri, file.type || 'application/octet-stream');
         fileUrl = getFileUrl('task-files', filePath);
       }
 
@@ -203,15 +245,20 @@ export const useTaskStore = create<TaskState>((set, get) => ({
   fetchSubmissions: async (taskIds: string[] | string, userId?: string) => {
     set({ loading: true, error: null });
     try {
-      let query = supabase.from('submissions').select(
-        `
+      console.log('[TaskStore] fetchSubmissions start', { taskIds, userId });
+
+      let query = supabase
+        .from('submissions')
+        .select(
+          `
           *,
-          users:user_id (
+          profile:profiles!left (
+            id,
             full_name,
             email
           )
         `,
-      );
+        );
 
       if (Array.isArray(taskIds)) {
         query = query.in('task_id', taskIds);
@@ -229,6 +276,15 @@ export const useTaskStore = create<TaskState>((set, get) => ({
         console.error('Submissions fetch error:', error);
         throw error;
       }
+
+      console.log('[TaskStore] fetchSubmissions received', {
+        count: data?.length || 0,
+        sample: data?.slice(0, 2).map((item) => ({
+          id: item.id,
+          user_id: item.user_id,
+          profileFullName: item.profile?.full_name,
+        })),
+      });
 
       // Yangi javoblarni store'ga qo'shamiz
       const { submissions } = get();
@@ -272,27 +328,15 @@ export const useTaskStore = create<TaskState>((set, get) => ({
           const fileName = `${taskId}_${userId}_${Date.now()}.${fileExt}`;
           const filePath = `task-submissions/${fileName}`;
 
-          // Faylni yuklash
-          const response = await fetch(file.uri);
-          const blob = await response.blob();
+          await uploadFile(
+            'submission-files',
+            filePath,
+            file.uri,
+            file.type || 'application/octet-stream',
+            false,
+          );
 
-          const { data: fileData, error: fileError } = await supabase.storage
-            .from('submission-files')
-            .upload(filePath, blob, {
-              contentType: file.type,
-            });
-
-          if (fileError) {
-            console.error('Fayl yuklashda xatolik:', fileError);
-            throw new Error('Fayl yuklashda xatolik yuz berdi');
-          }
-
-          // Fayl URL sini olish
-          const {
-            data: { publicUrl },
-          } = supabase.storage.from('submission-files').getPublicUrl(filePath);
-
-          fileUrl = publicUrl;
+          fileUrl = getFileUrl('submission-files', filePath);
         } catch (fileError: any) {
           console.error('Fayl yuklashda xatolik:', fileError);
           throw new Error(
@@ -336,6 +380,12 @@ export const useTaskStore = create<TaskState>((set, get) => ({
 
   rateSubmission: async (submissionId, rating, feedback) => {
     try {
+      console.log('[TaskStore] rateSubmission start', {
+        submissionId,
+        rating,
+        feedback,
+      });
+
       const { error } = await supabase
         .from('submissions')
         .update({ rating, feedback })
@@ -351,8 +401,11 @@ export const useTaskStore = create<TaskState>((set, get) => ({
 
       set({ submissions: updatedSubmissions });
 
+      console.log('[TaskStore] rateSubmission success');
+
       return { success: true };
     } catch (error: any) {
+      console.error('[TaskStore] rateSubmission error', error);
       return { success: false, error: error.message };
     }
   },

@@ -4,17 +4,18 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  Alert,
   ScrollView,
   Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Theme from '@/constants/Theme';
 import { useAuth } from '@/hooks/useAuth';
+import { useToast } from '@/context/ToastContext';
 import Avatar from '@/components/ui/Avatar';
 import Button from '@/components/ui/Button';
 import * as ImagePicker from 'expo-image-picker';
-import { uploadFile, getFileUrl, supabase } from '@/lib/supabase';
+import { uploadFile, supabase } from '@/lib/supabase';
+import * as FileSystem from 'expo-file-system/legacy';
 import {
   Camera,
   LogOut,
@@ -29,6 +30,7 @@ const { COLORS, FONTS, FONT_SIZES, SPACING, SHADOWS } = Theme;
 
 export default function ProfileScreen() {
   const { user, signOut, refreshProfile, isTeacher } = useAuth();
+  const { showToast } = useToast();
   const [loading, setLoading] = useState(false);
   const [imageUri, setImageUri] = useState<string | null>(null);
 
@@ -41,7 +43,7 @@ export default function ProfileScreen() {
   const handleSignOut = async () => {
     const { error } = await signOut();
     if (error) {
-      Alert.alert('Xatolik', error.message);
+      showToast(error.message, 'error');
     } else {
       router.replace('/login');
     }
@@ -54,10 +56,7 @@ export default function ProfileScreen() {
         await ImagePicker.requestMediaLibraryPermissionsAsync();
 
       if (status !== 'granted') {
-        Alert.alert(
-          'Ruxsat kerak',
-          'Rasmlaringizga kirish uchun ruxsat bering',
-        );
+        showToast("Rasmlaringizga kirish uchun ruxsat bering", 'error');
         return;
       }
 
@@ -69,83 +68,72 @@ export default function ProfileScreen() {
         base64: true,
       });
 
-      if (!result.canceled && result.assets[0]) {
+      if (!result.canceled && result.assets && result.assets[0]?.uri) {
         const asset = result.assets[0];
-        if (asset.uri) {
-          uploadProfileImage(asset.uri);
-        }
+        await uploadProfileImage({
+          uri: asset.uri,
+          mimeType: asset.mimeType || 'image/jpeg',
+          fileName: asset.fileName || asset.uri.split('/').pop() || 'avatar.jpg',
+        });
+      } else {
+        console.log('[Profile] Image pick cancelled');
       }
     } catch (error) {
       console.error('Error picking image:', error);
-      Alert.alert('Xatolik', 'Rasmni tanlashda xatolik yuz berdi');
+      showToast('Rasmni tanlashda xatolik yuz berdi', 'error');
     }
   };
 
-  const uploadProfileImage = async (uri: string) => {
-    if (!user) return;
+  const uploadProfileImage = async ({
+    uri,
+    mimeType,
+    fileName,
+  }: {
+    uri: string;
+    mimeType: string;
+    fileName: string;
+  }) => {
+    if (!user) {
+      console.warn('[Profile] User not found during avatar upload');
+      return;
+    }
 
     setLoading(true);
 
     try {
-      // Get file extension
-      const fileExtension = uri.split('.').pop() || 'jpg';
-      const fileName = `${user.id}_${Date.now()}.${fileExtension}`;
-      const filePath = `avatars/${fileName}`;
+      console.log('[Profile] Upload avatar start', {
+        uri,
+        mimeType,
+        fileName,
+      });
 
-      // Convert URI to blob with error handling
-      let blob;
-      try {
-        const response = await fetch(uri);
-        if (!response.ok) throw new Error('Network response was not ok');
-        blob = await response.blob();
-      } catch (error) {
-        console.error('Error converting image to blob:', error);
-        throw new Error('Rasmni yuklash uchun tayyorlashda xatolik yuz berdi');
+      const extension =
+        fileName.split('.').pop() ||
+        mimeType.split('/').pop() ||
+        'jpg';
+      const normalizedMimeType =
+        mimeType || `image/${extension === 'jpg' ? 'jpeg' : extension}`;
+      const remoteFileName = `${Date.now()}.${extension}`;
+      const remotePath = `${user.id}/${remoteFileName}`;
+
+      const fileInfo = await FileSystem.getInfoAsync(uri);
+      if (!fileInfo.exists) {
+        console.warn('[Profile] Image file not found at URI', uri);
+        throw new Error('Tanlangan rasm topilmadi');
       }
 
-      // Upload to Supabase with retry logic
-      let uploadError = null;
-      let retryCount = 0;
-      const maxRetries = 3;
-
-      while (retryCount < maxRetries) {
-        try {
-          const { error } = await supabase.storage
-            .from('avatars')
-            .upload(filePath, blob, {
-              contentType: `image/${fileExtension}`,
-              upsert: true,
-              cacheControl: '3600',
-            });
-
-          if (!error) {
-            uploadError = null;
-            break;
-          }
-          uploadError = error;
-          retryCount++;
-          if (retryCount < maxRetries) {
-            await new Promise((resolve) =>
-              setTimeout(resolve, 1000 * retryCount),
-            );
-          }
-        } catch (err) {
-          uploadError = err;
-          retryCount++;
-          if (retryCount < maxRetries) {
-            await new Promise((resolve) =>
-              setTimeout(resolve, 1000 * retryCount),
-            );
-          }
-        }
-      }
-
-      if (uploadError) throw uploadError;
+      await uploadFile(
+        'avatars',
+        remotePath,
+        uri,
+        normalizedMimeType,
+        true,
+      );
 
       // Get public URL
       const {
         data: { publicUrl },
-      } = supabase.storage.from('avatars').getPublicUrl(filePath);
+      } = supabase.storage.from('avatars').getPublicUrl(remotePath);
 
       // Update user profile
       const { error: updateError } = await supabase
@@ -160,9 +148,9 @@ export default function ProfileScreen() {
       await refreshProfile();
     } catch (error) {
       console.error('Error uploading image:', error);
-      Alert.alert(
-        'Xatolik',
+      showToast(
         "Rasmni yuklashda xatolik yuz berdi. Iltimos, qaytadan urinib ko'ring",
+        'error',
       );
     } finally {
       setLoading(false);
