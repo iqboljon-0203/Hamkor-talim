@@ -1,12 +1,20 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
-import { COLORS, FONTS, FONT_SIZES, SPACING } from '@/constants/Theme';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+} from 'react-native';
+import { COLORS, FONTS, FONT_SIZES, SPACING, BORDER_RADIUS } from '@/constants/Theme';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import { useAuth } from '@/hooks/useAuth';
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Mail, Lock, ArrowLeft, User } from 'lucide-react-native';
+import { Mail, Lock, ArrowLeft, User, GraduationCap, BookOpen } from 'lucide-react-native';
 import { UserRole } from '@/lib/supabase';
 import * as Linking from 'expo-linking';
 import { useToast } from '@/context/ToastContext';
@@ -23,20 +31,29 @@ export default function SignupScreen() {
   const { signUp } = useAuth();
   const { showToast } = useToast();
 
+  const getPasswordStrength = () => {
+    if (password.length === 0) return { level: 0, label: '', color: COLORS.gray[300] };
+    if (password.length < 6) return { level: 1, label: 'Zaif', color: COLORS.error[500] };
+    if (password.length < 8) return { level: 2, label: "O'rtacha", color: COLORS.warning[500] };
+    const hasUpper = /[A-Z]/.test(password);
+    const hasNumber = /[0-9]/.test(password);
+    if (hasUpper && hasNumber) return { level: 3, label: 'Kuchli', color: COLORS.success[500] };
+    return { level: 2, label: "O'rtacha", color: COLORS.warning[500] };
+  };
+
   const handleSignup = async () => {
-    // Validate inputs
     if (!fullName || !email || !password || !confirmPassword) {
-      setError('Please fill in all fields');
+      setError("Iltimos, barcha maydonlarni to'ldiring");
       return;
     }
 
     if (password !== confirmPassword) {
-      setError('Passwords do not match');
+      setError("Parollar bir-biriga mos kelmadi");
       return;
     }
 
     if (password.length < 6) {
-      setError('Password must be at least 6 characters long');
+      setError("Parol kamida 6 ta belgidan iborat bo'lishi kerak");
       return;
     }
 
@@ -44,29 +61,27 @@ export default function SignupScreen() {
     setError('');
 
     try {
-      const redirectUrl = Linking.createURL('/'); 
-      console.log('Redirect URL:', redirectUrl);
-
-      // Pass redirectUrl to signUp
+      const redirectUrl = Linking.createURL('/');
       const { error: signUpError } = await signUp(email, password, role, fullName, redirectUrl);
-      
+
       if (signUpError) {
-        setError(signUpError.message || 'Failed to create account');
+        setError(signUpError.message || "Hisob yaratishda xatolik yuz berdi");
       } else {
-        // Confirmation email sent
         showToast("Tasdiqlash havolasi email manzilingizga yuborildi. Iltimos, pochta qutingizni tekshiring.", 'success');
         router.push('/login');
       }
     } catch (err: any) {
-      setError(err.message || 'An unexpected error occurred');
+      setError(err.message || "Kutilmagan xatolik yuz berdi");
     } finally {
       setLoading(false);
     }
   };
 
+  const passwordStrength = getPasswordStrength();
+
   return (
     <SafeAreaView style={styles.container}>
-      <KeyboardAvoidingView 
+      <KeyboardAvoidingView
         style={styles.keyboardAvoidingView}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
@@ -74,39 +89,114 @@ export default function SignupScreen() {
           <ArrowLeft size={24} color={COLORS.gray[700]} />
         </TouchableOpacity>
 
-        <ScrollView contentContainerStyle={styles.scrollContent}>
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
           <View style={styles.content}>
-            <Text style={styles.title}>Hisob yaratish</Text>
-            <Text style={styles.subtitle}>Hamkor t'alimga qo'shiling</Text>
+            <Text style={styles.title}>Hisob yaratish 🚀</Text>
+            <Text style={styles.subtitle}>Hamkor Ta'limga qo'shiling</Text>
 
-            {error ? <Text style={styles.errorText}>{error}</Text> : null}
+            {error ? (
+              <View style={styles.errorContainer}>
+                <Text style={styles.errorText}>{error}</Text>
+              </View>
+            ) : null}
+
+            {/* Role Selection Cards */}
+            <Text style={styles.roleLabel}>Rolingiz:</Text>
+            <View style={styles.roleContainer}>
+              <TouchableOpacity
+                style={[
+                  styles.roleCard,
+                  role === 'student' && styles.roleCardActive,
+                ]}
+                onPress={() => setRole('student')}
+                activeOpacity={0.7}
+              >
+                <View style={[styles.roleIconWrap, role === 'student' && styles.roleIconWrapActive]}>
+                  <GraduationCap size={24} color={role === 'student' ? COLORS.white : COLORS.primary[500]} />
+                </View>
+                <Text style={[styles.roleCardTitle, role === 'student' && styles.roleCardTitleActive]}>
+                  Talaba
+                </Text>
+                <Text style={[styles.roleCardDesc, role === 'student' && styles.roleCardDescActive]}>
+                  Vazifalarni bajaring
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[
+                  styles.roleCard,
+                  role === 'teacher' && styles.roleCardActive,
+                ]}
+                onPress={() => setRole('teacher')}
+                activeOpacity={0.7}
+              >
+                <View style={[styles.roleIconWrap, role === 'teacher' && styles.roleIconWrapActive]}>
+                  <BookOpen size={24} color={role === 'teacher' ? COLORS.white : COLORS.primary[500]} />
+                </View>
+                <Text style={[styles.roleCardTitle, role === 'teacher' && styles.roleCardTitleActive]}>
+                  O'qituvchi
+                </Text>
+                <Text style={[styles.roleCardDesc, role === 'teacher' && styles.roleCardDescActive]}>
+                  Guruh boshqaring
+                </Text>
+              </TouchableOpacity>
+            </View>
 
             <Input
-              label="Ismingiz"
-              placeholder="Ismingizni kiriting"
+              label="To'liq ismingiz"
+              placeholder="Ism va familiyangiz"
               value={fullName}
               onChangeText={setFullName}
-              icon={<User size={20} color={COLORS.gray[500]} />}
+              icon={<User size={20} color={COLORS.gray[400]} />}
             />
 
             <Input
               label="Email"
-              placeholder="Email kiriting"
+              placeholder="Email manzilingiz"
               value={email}
               onChangeText={setEmail}
               keyboardType="email-address"
               autoCapitalize="none"
-              icon={<Mail size={20} color={COLORS.gray[500]} />}
+              icon={<Mail size={20} color={COLORS.gray[400]} />}
             />
 
             <Input
               label="Parol"
-              placeholder="Parolni kiriting"
+              placeholder="Parol yarating"
               value={password}
               onChangeText={setPassword}
               secureTextEntry
-              icon={<Lock size={20} color={COLORS.gray[500]} />}
+              icon={<Lock size={20} color={COLORS.gray[400]} />}
             />
+
+            {/* Password strength */}
+            {password.length > 0 && (
+              <View style={styles.strengthContainer}>
+                <View style={styles.strengthBar}>
+                  {[1, 2, 3].map((level) => (
+                    <View
+                      key={level}
+                      style={[
+                        styles.strengthSegment,
+                        {
+                          backgroundColor:
+                            level <= passwordStrength.level
+                              ? passwordStrength.color
+                              : COLORS.gray[200],
+                        },
+                      ]}
+                    />
+                  ))}
+                </View>
+                <Text style={[styles.strengthLabel, { color: passwordStrength.color }]}>
+                  {passwordStrength.label}
+                </Text>
+              </View>
+            )}
 
             <Input
               label="Parolni tasdiqlang"
@@ -114,56 +204,21 @@ export default function SignupScreen() {
               value={confirmPassword}
               onChangeText={setConfirmPassword}
               secureTextEntry
-              icon={<Lock size={20} color={COLORS.gray[500]} />}
+              icon={<Lock size={20} color={COLORS.gray[400]} />}
             />
-
-            <Text style={styles.roleLabel}>Men:</Text>
-            <View style={styles.roleContainer}>
-              <TouchableOpacity
-                style={[
-                  styles.roleButton,
-                  role === 'student' && styles.roleButtonActive,
-                ]}
-                onPress={() => setRole('student')}
-              >
-                <Text
-                  style={[
-                    styles.roleButtonText,
-                    role === 'student' && styles.roleButtonTextActive,
-                  ]}
-                >
-                  O'quvchi
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[
-                  styles.roleButton,
-                  role === 'teacher' && styles.roleButtonActive,
-                ]}
-                onPress={() => setRole('teacher')}
-              >
-                <Text
-                  style={[
-                    styles.roleButtonText,
-                    role === 'teacher' && styles.roleButtonTextActive,
-                  ]}
-                >
-                  O'qituvchi
-                </Text>
-              </TouchableOpacity>
-            </View>
 
             <Button
               title="Hisob yaratish"
               onPress={handleSignup}
               fullWidth
               loading={loading}
+              size="lg"
+              gradient
               style={styles.signupButton}
             />
 
             <View style={styles.loginContainer}>
-              <Text style={styles.loginText}>Hisobingiz bormi?</Text>
+              <Text style={styles.loginText}>Hisobingiz bormi? </Text>
               <TouchableOpacity onPress={() => router.push('/login')}>
                 <Text style={styles.loginLink}>Kirish</Text>
               </TouchableOpacity>
@@ -178,7 +233,7 @@ export default function SignupScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.white,
+    backgroundColor: COLORS.background,
   },
   keyboardAvoidingView: {
     flex: 1,
@@ -188,81 +243,128 @@ const styles = StyleSheet.create({
   },
   backButton: {
     padding: SPACING.md,
-    marginTop: SPACING.sm,
+    marginTop: SPACING.xs,
+    alignSelf: 'flex-start',
   },
   content: {
     padding: SPACING.xl,
-    justifyContent: 'center',
   },
   title: {
     fontFamily: FONTS.bold,
-    fontSize: FONT_SIZES['2xl'],
-    color: COLORS.gray[800],
+    fontSize: FONT_SIZES['3xl'],
+    color: COLORS.gray[900],
     marginBottom: SPACING.xs,
   },
   subtitle: {
     fontFamily: FONTS.regular,
     fontSize: FONT_SIZES.md,
-    color: COLORS.gray[600],
-    marginBottom: SPACING.xl,
+    color: COLORS.gray[500],
+    marginBottom: SPACING.lg,
+  },
+  errorContainer: {
+    backgroundColor: COLORS.error[50],
+    borderRadius: BORDER_RADIUS.md,
+    padding: SPACING.md,
+    marginBottom: SPACING.md,
+    borderLeftWidth: 3,
+    borderLeftColor: COLORS.error[500],
   },
   errorText: {
-    fontFamily: FONTS.regular,
+    fontFamily: FONTS.medium,
     fontSize: FONT_SIZES.sm,
-    color: COLORS.error[500],
-    marginBottom: SPACING.md,
-    padding: SPACING.sm,
-    backgroundColor: COLORS.error[50],
-    borderRadius: 4,
+    color: COLORS.error[600],
   },
   roleLabel: {
     fontFamily: FONTS.medium,
     fontSize: FONT_SIZES.sm,
     color: COLORS.gray[700],
-    marginBottom: SPACING.xs,
+    marginBottom: SPACING.sm,
   },
   roleContainer: {
     flexDirection: 'row',
-    marginBottom: SPACING.xl,
+    gap: SPACING.md,
+    marginBottom: SPACING.lg,
   },
-  roleButton: {
+  roleCard: {
     flex: 1,
-    paddingVertical: SPACING.sm,
-    paddingHorizontal: SPACING.md,
-    borderWidth: 1,
-    borderColor: COLORS.gray[300],
+    padding: SPACING.md,
+    borderRadius: BORDER_RADIUS.xl,
+    borderWidth: 2,
+    borderColor: COLORS.gray[200],
+    backgroundColor: COLORS.white,
     alignItems: 'center',
-    justifyContent: 'center',
   },
-  roleButtonActive: {
-    backgroundColor: COLORS.primary[500],
+  roleCardActive: {
     borderColor: COLORS.primary[500],
+    backgroundColor: COLORS.primary[50],
   },
-  roleButtonText: {
-    fontFamily: FONTS.medium,
+  roleIconWrap: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: COLORS.primary[50],
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: SPACING.sm,
+  },
+  roleIconWrapActive: {
+    backgroundColor: COLORS.primary[500],
+  },
+  roleCardTitle: {
+    fontFamily: FONTS.bold,
     fontSize: FONT_SIZES.md,
     color: COLORS.gray[700],
+    marginBottom: 2,
   },
-  roleButtonTextActive: {
-    color: COLORS.white,
+  roleCardTitleActive: {
+    color: COLORS.primary[700],
+  },
+  roleCardDesc: {
+    fontFamily: FONTS.regular,
+    fontSize: FONT_SIZES.xs,
+    color: COLORS.gray[400],
+  },
+  roleCardDescActive: {
+    color: COLORS.primary[400],
+  },
+  strengthContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: -SPACING.sm,
+    marginBottom: SPACING.md,
+    gap: SPACING.sm,
+  },
+  strengthBar: {
+    flex: 1,
+    flexDirection: 'row',
+    gap: 4,
+  },
+  strengthSegment: {
+    flex: 1,
+    height: 4,
+    borderRadius: 2,
+  },
+  strengthLabel: {
+    fontFamily: FONTS.medium,
+    fontSize: FONT_SIZES.xs,
   },
   signupButton: {
-    marginTop: SPACING.lg,
+    marginTop: SPACING.md,
   },
   loginContainer: {
     flexDirection: 'row',
     justifyContent: 'center',
-    marginTop: SPACING.md,
+    marginTop: SPACING.lg,
     marginBottom: SPACING['2xl'],
   },
   loginText: {
     fontFamily: FONTS.regular,
     fontSize: FONT_SIZES.sm,
-    color: COLORS.gray[600],
+    color: COLORS.gray[500],
   },
   loginLink: {
-    fontFamily: FONTS.medium,
+    fontFamily: FONTS.bold,
     fontSize: FONT_SIZES.sm,
-    color: COLORS.primary[600],
+    color: COLORS.primary[500],
   },
 });

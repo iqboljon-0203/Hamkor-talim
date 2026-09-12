@@ -1,56 +1,70 @@
 import React from 'react';
-import { View, Text, StyleSheet, Image, ImageBackground } from 'react-native';
-import { COLORS, FONTS, FONT_SIZES, SPACING } from '@/constants/Theme';
+import { View, Text, StyleSheet } from 'react-native';
+import { COLORS, FONTS, FONT_SIZES, SPACING, GRADIENTS } from '@/constants/Theme';
 import Button from '@/components/ui/Button';
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { BookOpen } from 'lucide-react-native';
+import { CheckCircle } from 'lucide-react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 
 export default function WelcomeScreen() {
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.content}>
-        <View style={styles.logoContainer}>
-          <BookOpen size={64} color={COLORS.primary[500]} />
-          <Text style={styles.logoText}>Hamkor t'alim</Text>
+    <LinearGradient
+      colors={[GRADIENTS.primary[0], GRADIENTS.primary[1]]}
+      style={styles.gradient}
+    >
+      <SafeAreaView style={styles.container}>
+        <View style={styles.content}>
+          <View style={styles.logoContainer}>
+            <View style={styles.logoCircle}>
+              <CheckCircle size={48} color={COLORS.white} />
+            </View>
+            <Text style={styles.logoText}>Hamkor Ta'lim</Text>
+            <Text style={styles.tagline}>O'rganing · O'rgating · Rivojlaning</Text>
+          </View>
+
+          <Text style={styles.description}>
+            Ta'lim vazifalarini boshqarish va o'quvchi rivojini kuzatishning zamonaviy platformasi
+          </Text>
+
+          <View style={styles.buttonContainer}>
+            <Button
+              title="Kirish"
+              onPress={() => router.push('/login')}
+              size="lg"
+              fullWidth
+              style={styles.primaryButton}
+              textStyle={styles.primaryButtonText}
+              type="secondary"
+            />
+            <Button
+              title="Ro'yxatdan o'tish"
+              onPress={() => router.push('/signup')}
+              size="lg"
+              fullWidth
+              style={styles.outlineButton}
+              textStyle={styles.outlineButtonText}
+              type="ghost"
+            />
+          </View>
         </View>
 
-        <Text style={styles.subtitle}>O‘rganing, O‘rgating, Rivojlaning</Text>
-        
-        <Text style={styles.description}>
-        Ta’lim vazifalarini boshqarish va o‘quvchi rivojini kuzatishning samarali usuli
-        </Text>
-
-        <View style={styles.buttonContainer}>
-          <Button
-            title="Boshladik"
-            onPress={() => router.push('/login')}
-            size="lg"
-            fullWidth
-          />
-          <Button
-            title="Ro'yxatdan o'tish"
-            onPress={() => router.push('/signup')}
-            type="outline"
-            style={styles.secondaryButton}
-            fullWidth
-          />
+        <View style={styles.footer}>
+          <Text style={styles.footerText}>
+            Hamkor Ta'lim Enterprise © 2025
+          </Text>
         </View>
-      </View>
-      
-      <View style={styles.footer}>
-        <Text style={styles.footerText}>
-          Samarali ta’lim uchun o‘quvchilar va o‘qituvchilarni birlashtiramiz
-        </Text>
-      </View>
-    </SafeAreaView>
+      </SafeAreaView>
+    </LinearGradient>
   );
 }
 
 const styles = StyleSheet.create({
+  gradient: {
+    flex: 1,
+  },
   container: {
     flex: 1,
-    backgroundColor: COLORS.white,
   },
   content: {
     flex: 1,
@@ -60,34 +74,63 @@ const styles = StyleSheet.create({
   },
   logoContainer: {
     alignItems: 'center',
-    marginBottom: SPACING.xl,
+    marginBottom: SPACING['3xl'],
+  },
+  logoCircle: {
+    width: 90,
+    height: 90,
+    borderRadius: 45,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: SPACING.lg,
+    borderWidth: 2,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
   },
   logoText: {
     fontFamily: FONTS.bold,
-    fontSize: FONT_SIZES['3xl'],
-    color: COLORS.primary[700],
-    marginTop: SPACING.sm,
+    fontSize: FONT_SIZES['4xl'],
+    color: COLORS.white,
+    marginBottom: SPACING.sm,
   },
-  subtitle: {
+  tagline: {
     fontFamily: FONTS.medium,
-    fontSize: FONT_SIZES.xl,
-    color: COLORS.gray[700],
-    marginBottom: SPACING.lg,
-    textAlign: 'center',
+    fontSize: FONT_SIZES.md,
+    color: 'rgba(255, 255, 255, 0.8)',
   },
   description: {
     fontFamily: FONTS.regular,
     fontSize: FONT_SIZES.md,
-    color: COLORS.gray[600],
+    color: 'rgba(255, 255, 255, 0.7)',
     textAlign: 'center',
-    marginBottom: SPACING['2xl'],
+    marginBottom: SPACING['3xl'],
     lineHeight: 24,
+    paddingHorizontal: SPACING.lg,
   },
   buttonContainer: {
     width: '100%',
+    gap: SPACING.md,
   },
-  secondaryButton: {
-    marginTop: SPACING.md,
+  primaryButton: {
+    backgroundColor: COLORS.white,
+    borderRadius: 16,
+    paddingVertical: SPACING.md,
+  },
+  primaryButtonText: {
+    color: COLORS.primary[600],
+    fontFamily: FONTS.bold,
+    fontSize: FONT_SIZES.lg,
+  },
+  outlineButton: {
+    borderWidth: 2,
+    borderColor: 'rgba(255, 255, 255, 0.4)',
+    borderRadius: 16,
+    paddingVertical: SPACING.md,
+  },
+  outlineButtonText: {
+    color: COLORS.white,
+    fontFamily: FONTS.medium,
+    fontSize: FONT_SIZES.lg,
   },
   footer: {
     padding: SPACING.lg,
@@ -95,8 +138,7 @@ const styles = StyleSheet.create({
   },
   footerText: {
     fontFamily: FONTS.regular,
-    fontSize: FONT_SIZES.sm,
-    color: COLORS.gray[500],
-    textAlign: 'center',
+    fontSize: FONT_SIZES.xs,
+    color: 'rgba(255, 255, 255, 0.5)',
   },
 });

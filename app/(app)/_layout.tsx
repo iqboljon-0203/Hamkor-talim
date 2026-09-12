@@ -1,17 +1,18 @@
 import { Tabs } from 'expo-router';
 import { useAuth } from '@/hooks/useAuth';
-import { Home, Users, FileText, User2, Calendar, Star } from 'lucide-react-native';
+import { LayoutGrid, Users, Calendar, BarChart3, User } from 'lucide-react-native';
 import Theme from '@/constants/Theme';
-import { ActivityIndicator, View } from 'react-native';
+import { ActivityIndicator, View, Platform } from 'react-native';
 import { useEffect, useState } from 'react';
 import { Redirect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-const { COLORS, FONTS, FONT_SIZES } = Theme;
+const { COLORS, FONTS, FONT_SIZES, SHADOWS } = Theme;
 
 interface TabIconProps {
   color: string;
   size: number;
+  focused: boolean;
 }
 
 export default function AppLayout() {
@@ -19,9 +20,7 @@ export default function AppLayout() {
   const [shouldRedirect, setShouldRedirect] = useState(false);
   const insets = useSafeAreaInsets();
 
- 
   useEffect(() => {
-    // If user is null and not loading, need to redirect to auth
     if (!loading && !user) {
       setShouldRedirect(true);
     }
@@ -29,7 +28,7 @@ export default function AppLayout() {
 
   if (loading) {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: COLORS.background }}>
         <ActivityIndicator size="large" color={COLORS.primary[500]} />
       </View>
     );
@@ -39,12 +38,12 @@ export default function AppLayout() {
     return <Redirect href="/(auth)" />;
   }
 
-  const teacherTabs = [
+  const tabs = [
     {
       name: 'index',
-      label: 'Bosh sahifa',
+      label: 'Asosiy',
       icon: ({ color, size }: TabIconProps) => (
-        <Home size={size} color={color} />
+        <LayoutGrid size={size} color={color} />
       ),
     },
     {
@@ -55,68 +54,27 @@ export default function AppLayout() {
       ),
     },
     {
-      name: 'results',
-      label: 'Javoblar',
+      name: 'calendar/index',
+      label: 'Taqvim',
       icon: ({ color, size }: TabIconProps) => (
-        <FileText size={size} color={color} />
+        <Calendar size={size} color={color} />
       ),
     },
     {
-      name: 'calendar/index',
-      label: 'Kalendar',
+      name: 'results',
+      label: 'Natijalar',
       icon: ({ color, size }: TabIconProps) => (
-        <Calendar size={size} color={color} />
+        <BarChart3 size={size} color={color} />
       ),
     },
     {
       name: 'profile/index',
       label: 'Profil',
       icon: ({ color, size }: TabIconProps) => (
-        <User2 size={size} color={color} />
+        <User size={size} color={color} />
       ),
     },
   ];
-
-  const studentTabs = [
-    {
-      name: 'index',
-      label: 'Bosh sahifa',
-      icon: ({ color, size }: TabIconProps) => (
-        <Home size={size} color={color} />
-      ),
-    },
-    {
-      name: 'groups/index',
-      label: 'Darslar',
-      icon: ({ color, size }: TabIconProps) => (
-        <Users size={size} color={color} />
-      ),
-    },
-    {
-      name: 'results',
-      label: 'Baholar',
-      icon: ({ color, size }: TabIconProps) => (
-        <Star size={size} color={color} />
-      ),
-    },
-    {
-      name: 'calendar/index',
-      label: 'Kalendar',
-      icon: ({ color, size }: TabIconProps) => (
-        <Calendar size={size} color={color} />
-      ),
-    },
-    {
-      name: 'profile/index',
-      label: 'Profil',
-      icon: ({ color, size }: TabIconProps) => (
-        <User2 size={size} color={color} />
-      ),
-    },
-  ];
-
-  // Tablar massivini tuzamiz
-  const tabScreens = isTeacher ? teacherTabs : studentTabs;
 
   return (
     <Tabs
@@ -124,33 +82,35 @@ export default function AppLayout() {
         tabBarActiveTintColor: COLORS.primary[500],
         tabBarInactiveTintColor: COLORS.gray[400],
         tabBarStyle: {
-          borderTopWidth: 1,
-          borderTopColor: COLORS.gray[200],
-          height: 60 + insets.bottom,
-          paddingBottom: Math.max(insets.bottom, 10),
-          paddingTop: 5,
+          backgroundColor: COLORS.white,
+          borderTopWidth: 0,
+          height: 64 + insets.bottom,
+          paddingBottom: Math.max(insets.bottom, 8),
+          paddingTop: 8,
+          ...SHADOWS.sm,
+          shadowOffset: { width: 0, height: -2 },
         },
         tabBarLabelStyle: {
           fontFamily: FONTS.medium,
-          fontSize: FONT_SIZES.xs,
+          fontSize: 10,
+          marginTop: 2,
+        },
+        tabBarIconStyle: {
+          marginBottom: -2,
         },
         headerShown: false,
       }}
     >
-      {tabScreens.map((tab) => {
-        if (tab.name === 'submissions' && !isTeacher) return null;
-        if (tab.name === 'grades' && isTeacher) return null;
-        return (
-          <Tabs.Screen
-            key={tab.name}
-            name={tab.name}
-            options={{
-              title: tab.label,
-              tabBarIcon: tab.icon,
-            }}
-          />
-        );
-      })}
+      {tabs.map((tab) => (
+        <Tabs.Screen
+          key={tab.name}
+          name={tab.name}
+          options={{
+            title: tab.label,
+            tabBarIcon: tab.icon,
+          }}
+        />
+      ))}
     </Tabs>
   );
 }

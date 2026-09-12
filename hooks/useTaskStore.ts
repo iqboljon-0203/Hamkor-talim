@@ -31,6 +31,9 @@ interface TaskState {
   getTaskDetails: (
     taskId: string,
   ) => Promise<{ task: Task | null; error?: any }>;
+  deleteTask: (
+    taskId: string,
+  ) => Promise<{ success: boolean; error?: any }>;
 
   // Submission related methods
   fetchSubmissions: (
@@ -242,7 +245,30 @@ export const useTaskStore = create<TaskState>((set, get) => ({
     }
   },
 
+  deleteTask: async (taskId) => {
+    try {
+      const { error } = await supabase
+        .from('tasks')
+        .delete()
+        .eq('id', taskId);
+
+      if (error) throw error;
+
+      const { tasks } = get();
+      set({ tasks: tasks.filter((t) => t.id !== taskId) });
+
+      return { success: true };
+    } catch (error: any) {
+      return { success: false, error: error.message };
+    }
+  },
+
   fetchSubmissions: async (taskIds: string[] | string, userId?: string) => {
+    if (Array.isArray(taskIds) && taskIds.length === 0) {
+      set({ loading: false });
+      return;
+    }
+
     set({ loading: true, error: null });
     try {
       console.log('[TaskStore] fetchSubmissions start', { taskIds, userId });

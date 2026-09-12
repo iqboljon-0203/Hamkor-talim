@@ -7,12 +7,19 @@ import {
   TouchableOpacity,
   RefreshControl,
   Linking,
+  FlatList,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
 import Theme from '@/constants/Theme';
+import { GRADIENTS, STATUS_COLORS } from '@/constants/Theme';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/context/ToastContext';
 import Card from '@/components/ui/Card';
+import AppHeader from '@/components/ui/AppHeader';
+import StatusBadge from '@/components/ui/StatusBadge';
+import ProgressBar from '@/components/ui/ProgressBar';
+import Skeleton from '@/components/ui/Skeleton';
 import { useTaskStore } from '@/hooks/useTaskStore';
 import { useGroupStore } from '@/hooks/useGroupStore';
 import { Task, Group, Submission } from '@/lib/supabase';
@@ -20,17 +27,19 @@ import { router } from 'expo-router';
 import {
   Clock,
   CheckCircle2,
-  AlertCircle,
-  BookOpen,
+  AlertTriangle,
+  Users,
   FileText,
   Calendar,
-  Users,
-  File,
+  Plus,
+  Search,
+  ChevronRight,
+  ArrowRight,
 } from 'lucide-react-native';
 import TaskModal from '@/components/ui/TaskModal';
-import Skeleton from '@/components/ui/Skeleton';
+import Avatar from '@/components/ui/Avatar';
 
-const { COLORS, FONTS, FONT_SIZES, SPACING, SHADOWS } = Theme;
+const { COLORS, FONTS, FONT_SIZES, SPACING, SHADOWS, BORDER_RADIUS } = Theme;
 
 export default function HomeScreen() {
   const { user, isTeacher } = useAuth();
@@ -50,7 +59,6 @@ export default function HomeScreen() {
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [isTaskModalVisible, setTaskModalVisible] = useState(false);
   const [recentSubmissions, setRecentSubmissions] = useState<Submission[]>([]);
-  const [expandedGroup, setExpandedGroup] = useState<string | null>(null);
 
   const isLoading = tasksLoading || groupsLoading;
 
@@ -70,15 +78,12 @@ export default function HomeScreen() {
       const teacherGroups = currentGroups.filter(
         (group) => group.created_by === user.id,
       );
-
-      // Optimized: Fetch all tasks for teacher's groups in one go
       const groupIds = teacherGroups.map(g => g.id);
       if (groupIds.length > 0) {
         await useTaskStore.getState().fetchTasksByGroupIds(groupIds);
       }
     } else {
       const studentGroupIds = currentGroups.map((group) => group.id);
-       // Optimized: Fetch all tasks for student's groups in one go
       if (studentGroupIds.length > 0) {
         await useTaskStore.getState().fetchTasksByGroupIds(studentGroupIds);
       }
@@ -128,7 +133,6 @@ export default function HomeScreen() {
   };
 
   useEffect(() => {
-    // Filter upcoming tasks (due in the next 7 days)
     const now = new Date();
     const nextWeek = new Date();
     nextWeek.setDate(now.getDate() + 7);
@@ -140,7 +144,6 @@ export default function HomeScreen() {
     } else if (user) {
       const currentGroups = useGroupStore.getState().groups;
       const studentGroupIds = currentGroups.map((group) => group.id);
-
       filteredTasks = tasks.filter((task) =>
         studentGroupIds.includes(task.group_id),
       );
@@ -151,7 +154,6 @@ export default function HomeScreen() {
       return dueDate >= now && dueDate <= nextWeek;
     });
 
-    // Sort by due date (ascending)
     upcoming.sort(
       (a, b) => new Date(a.due_date).getTime() - new Date(b.due_date).getTime(),
     );
@@ -171,7 +173,14 @@ export default function HomeScreen() {
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    return date.toLocaleDateString('uz-UZ', { month: 'short', day: 'numeric' });
+  };
+
+  const formatFullDate = () => {
+    const now = new Date();
+    const days = ['Yakshanba', 'Dushanba', 'Seshanba', 'Chorshanba', 'Payshanba', 'Juma', 'Shanba'];
+    const months = ['Yanvar', 'Fevral', 'Mart', 'Aprel', 'May', 'Iyun', 'Iyul', 'Avgust', 'Sentabr', 'Oktabr', 'Noyabr', 'Dekabr'];
+    return `BUGUN: ${now.getDate()}-${months[now.getMonth()].toUpperCase()}, ${days[now.getDay()].toUpperCase()}`;
   };
 
   const isDueSoon = (dateString: string) => {
@@ -180,6 +189,10 @@ export default function HomeScreen() {
     const diffTime = dueDate.getTime() - now.getTime();
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
     return diffDays <= 2 && diffDays >= 0;
+  };
+
+  const isOverdue = (dateString: string) => {
+    return new Date(dateString) < new Date();
   };
 
   const handleTaskPress = (task: Task) => {
@@ -205,7 +218,6 @@ export default function HomeScreen() {
             result.error || 'Vazifani yangilashda xatolik yuz berdi',
           );
         }
-        // Vazifalar ro'yxatini yangilash
         await loadData();
         setTaskModalVisible(false);
         setSelectedTask(null);
@@ -219,16 +231,22 @@ export default function HomeScreen() {
     title: string;
     description: string;
     due_date: string;
+    group_id?: string;
     file?: { uri: string; type: string; name: string };
   }) => {
     if (user) {
       try {
+        if (!taskData.group_id) {
+          throw new Error('Iltimos, guruhni tanlang');
+        }
+        const { file, ...rest } = taskData;
         const result = await createTask(
           {
-            ...taskData,
+            ...rest,
+            group_id: taskData.group_id,
             created_by: user.id,
           },
-          taskData.file,
+          file,
         );
 
         if (!result.success) {
@@ -237,230 +255,304 @@ export default function HomeScreen() {
           );
         }
 
-        // Vazifalar ro'yxatini yangilash
         await loadData();
         setTaskModalVisible(false);
+        showToast('Vazifa muvaffaqiyatli yaratildi', 'success');
       } catch (error: any) {
         showToast(`Xatolik: ${error.message}`, 'error');
       }
     }
   };
 
-  const toggleGroupExpansion = (groupId: string) => {
-    setExpandedGroup(expandedGroup === groupId ? null : groupId);
+  const getTaskStatus = (task: Task): 'overdue' | 'pending' | 'submitted' | 'active' => {
+    if (isOverdue(task.due_date)) return 'overdue';
+    const sub = submissions.find(s => s.task_id === task.id && s.user_id === user?.id);
+    if (sub) return 'submitted';
+    if (isDueSoon(task.due_date)) return 'pending';
+    return 'active';
   };
 
-  const getGroupTasks = (groupId: string) => {
-    return tasks.filter((task) => task.group_id === groupId);
-  };
+  const pendingCount = isTeacher
+    ? upcomingTasks.length
+    : upcomingTasks.filter(t => !submissions.find(s => s.task_id === t.id && s.user_id === user?.id)).length;
 
-  // Yaqinlashgan 3 ta vazifani olish uchun
-  const visibleUpcomingTasks = upcomingTasks.slice(0, 3);
+  const submittedCount = isTeacher
+    ? recentSubmissions.length
+    : submissions.filter((s) => s.user_id === user?.id).length;
+
+  const visibleUpcomingTasks = upcomingTasks.slice(0, 5);
 
   const renderSkeleton = () => (
-    <View style={styles.sectionContainer}>
-        <View style={{ marginBottom: 20 }}>
-            <Skeleton width={200} height={24} style={{ marginBottom: 15 }} />
-            <Skeleton width="100%" height={120} borderRadius={16} style={{ marginBottom: 12 }} />
-            <Skeleton width="100%" height={120} borderRadius={16} />
-        </View>
-        <View>
-            <Skeleton width={150} height={24} style={{ marginBottom: 15 }} />
-            <Skeleton width="100%" height={80} borderRadius={10} style={{ marginBottom: 10 }} />
-            <Skeleton width="100%" height={80} borderRadius={10} />
-        </View>
+    <View style={{ padding: SPACING.md }}>
+      <Skeleton width="100%" height={100} borderRadius={20} style={{ marginBottom: 16 }} />
+      <View style={{ flexDirection: 'row', gap: 12, marginBottom: 20 }}>
+        <Skeleton width="31%" height={90} borderRadius={16} />
+        <Skeleton width="31%" height={90} borderRadius={16} />
+        <Skeleton width="31%" height={90} borderRadius={16} />
+      </View>
+      <Skeleton width="100%" height={120} borderRadius={20} style={{ marginBottom: 12 }} />
+      <Skeleton width="100%" height={120} borderRadius={20} />
     </View>
   );
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
+      <AppHeader subtitle="Asosiy" />
+
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
+        showsVerticalScrollIndicator={false}
       >
-        <View style={styles.header}>
-          <View>
-            <Text style={styles.greeting}>
-              Salom, {user?.full_name?.split(' ')[0] || 'there'}
-            </Text>
-            <Text style={styles.role}>{isTeacher ? 'Teacher' : 'Student'}</Text>
-          </View>
+        {/* Date & Greeting */}
+        <View style={styles.greetingSection}>
+          <Text style={styles.dateText}>{formatFullDate()}</Text>
+          <Text style={styles.greeting}>
+            Salom, {user?.full_name?.split(' ')[0] || 'Foydalanuvchi'}{' '}
+            {isTeacher ? 'ustoz' : ''} 👋
+          </Text>
         </View>
 
-        <View style={styles.statsContainer}>
-          <View style={styles.statsCard}>
-            <View style={styles.statsIconContainer}>
-              <BookOpen size={24} color={COLORS.primary[500]} />
-            </View>
-            <Text style={styles.statsValue}>{groups.length}</Text>
-            <Text style={styles.statsLabel}>
-              {isTeacher ? 'Guruhlar' : 'Darslar'}
-            </Text>
-          </View>
-
-          <View style={styles.statsCard}>
-            <View
-              style={[
-                styles.statsIconContainer,
-                { backgroundColor: COLORS.accent[100] },
-              ]}
+        {/* Alert Banner */}
+        {upcomingTasks.length > 0 && (
+          <View style={styles.bannerWrap}>
+            <LinearGradient
+              colors={[GRADIENTS.banner[0], GRADIENTS.banner[1]]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.banner}
             >
-              <Clock size={24} color={COLORS.accent[500]} />
-            </View>
-            <Text style={styles.statsValue}>{upcomingTasks.length}</Text>
-            <Text style={styles.statsLabel}>Yaqin vazifalar</Text>
+              <View style={styles.bannerBadge}>
+                <AlertTriangle size={12} color={COLORS.warning[500]} />
+                <Text style={styles.bannerBadgeText}>MUHIM ESLATMA</Text>
+              </View>
+              <Text style={styles.bannerTitle}>
+                {upcomingTasks.length > 1
+                  ? `Bugun ${upcomingTasks.filter(t => isDueSoon(t.due_date)).length} ta vazifaning topshirish muddati tugaydi!`
+                  : 'Yaqinda muddati tugaydigan vazifa bor!'}
+              </Text>
+              <TouchableOpacity 
+                style={styles.bannerButton}
+                onPress={() => router.push('/(app)/calendar')}
+              >
+                <Text style={styles.bannerButtonText}>Tekshirish</Text>
+                <ArrowRight size={14} color={COLORS.gray[800]} />
+              </TouchableOpacity>
+            </LinearGradient>
           </View>
-
-          <View style={styles.statsCard}>
-            <View
-              style={[
-                styles.statsIconContainer,
-                { backgroundColor: COLORS.success[100] },
-              ]}
-            >
-              <CheckCircle2 size={24} color={COLORS.success[500]} />
-            </View>
-            <Text style={styles.statsValue}>
-              {isTeacher
-                ? recentSubmissions.length
-                : submissions.filter((s) => s.user_id === user?.id).length}
-            </Text>
-            <Text style={styles.statsLabel}>
-              {isTeacher ? 'Oxirgi javoblar' : 'Bajarilgan'}
-            </Text>
-          </View>
-        </View>
-
-        {isLoading && !refreshing ? (
-            renderSkeleton()
-        ) : (
-            <>
-                <View style={styles.sectionContainer}>
-                <Text style={styles.sectionTitle}>Yaqinlashgan Vazifalar</Text>
-
-                {visibleUpcomingTasks.length > 0 ? (
-                    visibleUpcomingTasks.map((task) => (
-                    <Card
-                        key={task.id}
-                        style={styles.taskCard}
-                        onPress={() => handleTaskPress(task)}
-                    >
-                        <View style={styles.taskHeader}>
-                        <Text style={styles.taskTitle}>{task.title}</Text>
-                        </View>
-                        <Text style={styles.taskGroup}>
-                        {getGroupById(task.group_id)?.name || "Noma'lum guruh"}
-                        </Text>
-                        <Text numberOfLines={2} style={styles.taskDescription}>
-                        {task.description}
-                        </Text>
-                        <View style={styles.taskMeta}>
-                        <Calendar size={16} color={COLORS.gray[500]} />
-                        <Text style={styles.taskDate}>
-                            Muddat: {formatDate(task.due_date)}
-                        </Text>
-                        </View>
-                        {isDueSoon(task.due_date) && (
-                        <View style={styles.dueSoonContainer}>
-                            <AlertCircle size={16} color={COLORS.warning[500]} />
-                            <Text style={styles.dueSoonText}>
-                            Tez orada muddati tugaydi
-                            </Text>
-                        </View>
-                        )}
-                    </Card>
-                    ))
-                ) : (
-                    <View style={styles.emptyContainer}>
-                    <Text style={styles.emptyText}>Yaqinlashgan vazifalar yo'q</Text>
-                    </View>
-                )}
-                </View>
-
-                <View style={styles.sectionContainer}>
-                <View style={styles.sectionHeader}>
-                    <Text style={styles.sectionTitle}>
-                    {isTeacher ? 'Oxirgi javoblar' : "So'nggi faollik"}
-                    </Text>
-                </View>
-
-                {isTeacher ? (
-                    recentSubmissions.length > 0 ? (
-                    recentSubmissions.map((submission) => (
-                        <View key={submission.id} style={styles.submissionCard}>
-                        <View style={styles.submissionHeader}>
-                            <Text style={styles.submissionTitle}>
-                            {tasks.find((t) => t.id === submission.task_id)?.title ||
-                                'Unknown Task'}
-                            </Text>
-                            <Text style={styles.submissionDate}>
-                            {new Date(submission.submitted_at).toLocaleDateString()}
-                            </Text>
-                        </View>
-                        <Text style={styles.submissionDescription}>
-                            {submission.content || 'No description provided'}
-                        </Text>
-                        {submission.file_url && (
-                            <TouchableOpacity
-                            style={styles.submissionFile}
-                            onPress={() => Linking.openURL(submission.file_url!)}
-                            >
-                            <FileText size={16} color={COLORS.primary[500]} />
-                            <Text style={styles.submissionFileText}>
-                                View Submission File
-                            </Text>
-                            </TouchableOpacity>
-                        )}
-                        </View>
-                    ))
-                    ) : (
-                    <View style={styles.emptyContainer}>
-                        <Text style={styles.emptyText}>No recent submissions</Text>
-                    </View>
-                    )
-                ) : recentSubmissions.length > 0 ? (
-                    recentSubmissions.map((submission) => (
-                    <View key={submission.id} style={styles.submissionCard}>
-                        <View style={styles.submissionHeader}>
-                        <Text style={styles.submissionTitle}>
-                            {tasks.find((t) => t.id === submission.task_id)?.title ||
-                            'Nomaʼlum vazifa'}
-                        </Text>
-                        <Text style={styles.submissionDate}>
-                            {new Date(submission.submitted_at).toLocaleDateString()}
-                        </Text>
-                        </View>
-                        <Text style={styles.submissionDescription}>
-                        {submission.content || 'Izoh yoʻq'}
-                        </Text>
-                        {submission.file_url && (
-                        <TouchableOpacity
-                            style={styles.submissionFile}
-                            onPress={() => Linking.openURL(submission.file_url!)}
-                        >
-                            <FileText size={16} color={COLORS.primary[500]} />
-                            <Text style={styles.submissionFileText}>
-                            Yuborilgan faylni ko'rish
-                            </Text>
-                        </TouchableOpacity>
-                        )}
-                    </View>
-                    ))
-                ) : (
-                    <View style={styles.emptyContainer}>
-                    <Text style={styles.emptyText}>
-                        Sizda hali topshirilgan vazifalar yo'q
-                    </Text>
-                    </View>
-                )}
-                </View>
-            </>
         )}
 
+        {isLoading && !refreshing ? (
+          renderSkeleton()
+        ) : (
+          <>
+            {/* Stats Cards */}
+            <View style={styles.statsRow}>
+              <View style={styles.statCard}>
+                <View style={[styles.statIcon, { backgroundColor: COLORS.primary[50] }]}>
+                  <Users size={18} color={COLORS.primary[500]} />
+                </View>
+                <Text style={styles.statValue}>{groups.length} ta</Text>
+                <Text style={styles.statLabel}>Faol guruhlar</Text>
+              </View>
+              <View style={styles.statCard}>
+                <View style={[styles.statIcon, { backgroundColor: COLORS.secondary[50] }]}>
+                  <FileText size={18} color={COLORS.secondary[500]} />
+                </View>
+                <Text style={styles.statValue}>{tasks.length} ta</Text>
+                <Text style={styles.statLabel}>Topshiriqlar</Text>
+              </View>
+              <View style={styles.statCard}>
+                <View style={[styles.statIcon, { backgroundColor: COLORS.warning[50] }]}>
+                  <Clock size={18} color={COLORS.warning[500]} />
+                </View>
+                <Text style={[styles.statValue, pendingCount > 0 && { color: COLORS.warning[600] }]}>
+                  {pendingCount} ta
+                </Text>
+                <Text style={styles.statLabel}>Kutilmoqda</Text>
+                {pendingCount > 0 && <View style={styles.statDot} />}
+              </View>
+            </View>
+
+            {/* Groups Carousel */}
+            {groups.length > 0 && (
+              <View style={styles.section}>
+                <View style={styles.sectionHeader}>
+                  <View style={styles.sectionTitleRow}>
+                    <Text style={styles.sectionTitle}>Guruhlarim</Text>
+                    <View style={styles.countBadge}>
+                      <Text style={styles.countBadgeText}>{groups.length}</Text>
+                    </View>
+                  </View>
+                  <TouchableOpacity 
+                    onPress={() => router.push('/(app)/groups')}
+                  >
+                    <Text style={styles.seeAllText}>Barchasi →</Text>
+                  </TouchableOpacity>
+                </View>
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.groupsScroll}
+                >
+                  {groups.slice(0, 5).map((group) => {
+                    const groupTasks = tasks.filter(t => t.group_id === group.id);
+                    const completedCount = groupTasks.length > 0
+                      ? submissions.filter(s => groupTasks.some(t => t.id === s.task_id)).length
+                      : 0;
+                    const progressPct = groupTasks.length > 0
+                      ? Math.round((completedCount / Math.max(groupTasks.length, 1)) * 100)
+                      : 0;
+
+                    return (
+                      <TouchableOpacity
+                        key={group.id}
+                        style={styles.groupMiniCard}
+                        onPress={() => router.push('/(app)/groups')}
+                        activeOpacity={0.7}
+                      >
+                        <View style={styles.groupMiniTop}>
+                          <View style={styles.groupMiniIcon}>
+                            <Users size={16} color={COLORS.primary[500]} />
+                          </View>
+                          {progressPct > 70 && (
+                            <StatusBadge status="active" label={`${progressPct}% faollik`} />
+                          )}
+                        </View>
+                        <Text style={styles.groupMiniName} numberOfLines={1}>{group.name}</Text>
+                        <Text style={styles.groupMiniMeta}>
+                          {groupTasks.length} ta topshiriq
+                        </Text>
+                        <View style={styles.groupMiniProgress}>
+                          <Text style={styles.groupMiniProgressLabel}>Dars o'zlashtirish</Text>
+                          <Text style={styles.groupMiniProgressValue}>{progressPct}%</Text>
+                        </View>
+                        <ProgressBar value={progressPct} height={4} />
+                      </TouchableOpacity>
+                    );
+                  })}
+                </ScrollView>
+              </View>
+            )}
+
+            {/* Recent Tasks */}
+            <View style={styles.section}>
+              <View style={styles.sectionHeader}>
+                <Text style={styles.sectionTitle}>So'nggi vazifalar</Text>
+                <Text style={styles.seeAllMuted}>Oxirgi yangilanish</Text>
+              </View>
+
+              {visibleUpcomingTasks.length > 0 ? (
+                visibleUpcomingTasks.map((task) => {
+                  const group = getGroupById(task.group_id);
+                  const status = getTaskStatus(task);
+                  return (
+                    <TouchableOpacity
+                      key={task.id}
+                      style={styles.taskCard}
+                      onPress={() => handleTaskPress(task)}
+                      activeOpacity={0.7}
+                    >
+                      <View style={styles.taskCardTop}>
+                        <Text style={styles.taskGroupLabel}>
+                          {group?.name?.toUpperCase() || "NOMA'LUM"}
+                        </Text>
+                        <StatusBadge
+                          status={status}
+                          dot
+                          label={
+                            status === 'overdue' ? "Muddati o'tgan" :
+                            status === 'submitted' ? `${submittedCount} topshirildi` :
+                            status === 'pending' ? `${pendingCount} kutilmoqda` :
+                            'Faol'
+                          }
+                        />
+                      </View>
+                      <Text style={styles.taskCardTitle} numberOfLines={1}>
+                        {task.title}
+                      </Text>
+                      <View style={styles.taskCardBottom}>
+                        <View style={styles.taskCardDate}>
+                          <Calendar size={14} color={COLORS.gray[400]} />
+                          <Text style={styles.taskCardDateText}>
+                            {isDueSoon(task.due_date) ? 'Bugun' : formatDate(task.due_date)}, {new Date(task.due_date).toLocaleTimeString('uz-UZ', { hour: '2-digit', minute: '2-digit' })}
+                          </Text>
+                        </View>
+                      </View>
+                    </TouchableOpacity>
+                  );
+                })
+              ) : (
+                <View style={styles.emptyCard}>
+                  <FileText size={32} color={COLORS.gray[300]} />
+                  <Text style={styles.emptyText}>Yaqinlashgan vazifalar yo'q</Text>
+                </View>
+              )}
+            </View>
+
+            {/* Recent Activity / Submissions */}
+            <View style={styles.section}>
+              <View style={styles.sectionHeader}>
+                <Text style={styles.sectionTitle}>
+                  {isTeacher ? 'Oxirgi javoblar' : "So'nggi faollik"}
+                </Text>
+              </View>
+
+              {recentSubmissions.length > 0 ? (
+                recentSubmissions.slice(0, 3).map((submission) => (
+                  <View key={submission.id} style={styles.activityCard}>
+                    <View style={styles.activityLeft}>
+                      <View style={styles.activityDot} />
+                      <View style={styles.activityInfo}>
+                        <Text style={styles.activityTitle} numberOfLines={1}>
+                          {tasks.find((t) => t.id === submission.task_id)?.title || 'Nomaʼlum vazifa'}
+                        </Text>
+                        <Text style={styles.activityDate}>
+                          {new Date(submission.submitted_at).toLocaleDateString('uz-UZ')}
+                        </Text>
+                      </View>
+                    </View>
+                    {submission.rating !== null && submission.rating !== undefined && (
+                      <View style={styles.gradeBadge}>
+                        <Text style={styles.gradeText}>{submission.rating}</Text>
+                      </View>
+                    )}
+                  </View>
+                ))
+              ) : (
+                <View style={styles.emptyCard}>
+                  <CheckCircle2 size={32} color={COLORS.gray[300]} />
+                  <Text style={styles.emptyText}>
+                    {isTeacher ? 'Oxirgi javoblar mavjud emas' : "Hali faollik yo'q"}
+                  </Text>
+                </View>
+              )}
+            </View>
+          </>
+        )}
       </ScrollView>
+
+      {/* FAB */}
+      {isTeacher && (
+        <TouchableOpacity
+          style={styles.fab}
+          onPress={() => setTaskModalVisible(true)}
+          activeOpacity={0.85}
+        >
+          <LinearGradient
+            colors={[GRADIENTS.primary[0], GRADIENTS.primary[1]]}
+            style={styles.fabGradient}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+          >
+            <Plus size={20} color={COLORS.white} />
+            <Text style={styles.fabText}>Yangi vazifa</Text>
+          </LinearGradient>
+        </TouchableOpacity>
+      )}
 
       <TaskModal
         isVisible={isTaskModalVisible}
@@ -470,6 +562,7 @@ export default function HomeScreen() {
         }}
         onSubmit={selectedTask ? handleUpdateTask : handleCreateTask}
         initialData={selectedTask ? selectedTask : undefined}
+        groups={isTeacher ? groups.filter((g) => g.created_by === user?.id) : undefined}
       />
     </SafeAreaView>
   );
@@ -478,154 +571,128 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.gray[50],
+    backgroundColor: COLORS.background,
   },
   scrollView: {
     flex: 1,
   },
   scrollContent: {
-    paddingBottom: SPACING['2xl'],
+    paddingBottom: 100,
   },
-  header: {
-    backgroundColor: COLORS.primary[500],
-    paddingTop: SPACING.lg,
-    paddingBottom: SPACING['2xl'],
-    paddingHorizontal: SPACING.xl,
-    borderBottomLeftRadius: 24,
-    borderBottomRightRadius: 24,
+  // Greeting
+  greetingSection: {
+    paddingHorizontal: SPACING.lg,
+    paddingTop: SPACING.md,
+    paddingBottom: SPACING.sm,
+  },
+  dateText: {
+    fontFamily: FONTS.medium,
+    fontSize: FONT_SIZES.xs,
+    color: COLORS.gray[400],
+    letterSpacing: 0.5,
+    marginBottom: SPACING.xs,
   },
   greeting: {
     fontFamily: FONTS.bold,
     fontSize: FONT_SIZES['2xl'],
-    color: COLORS.white,
+    color: COLORS.gray[900],
   },
-  role: {
-    fontFamily: FONTS.regular,
-    fontSize: FONT_SIZES.md,
-    color: COLORS.white,
-    opacity: 0.8,
+  // Banner
+  bannerWrap: {
+    paddingHorizontal: SPACING.lg,
+    marginTop: SPACING.md,
   },
-  statsContainer: {
+  banner: {
+    borderRadius: BORDER_RADIUS['2xl'],
+    padding: SPACING.lg,
+  },
+  bannerBadge: {
     flexDirection: 'row',
-    marginTop: -SPACING.xl,
-    marginHorizontal: SPACING.md,
-    justifyContent: 'space-between',
-  },
-  statsCard: {
-    backgroundColor: COLORS.white,
-    borderRadius: 16,
-    padding: SPACING.md,
     alignItems: 'center',
-    width: '30%',
-    ...SHADOWS.md,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    paddingHorizontal: SPACING.sm,
+    paddingVertical: 3,
+    borderRadius: BORDER_RADIUS.full,
+    alignSelf: 'flex-start',
+    marginBottom: SPACING.sm,
+    gap: 4,
   },
-  statsIconContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: COLORS.primary[100],
+  bannerBadgeText: {
+    fontFamily: FONTS.bold,
+    fontSize: 9,
+    color: COLORS.white,
+    letterSpacing: 0.5,
+  },
+  bannerTitle: {
+    fontFamily: FONTS.bold,
+    fontSize: FONT_SIZES.lg,
+    color: COLORS.white,
+    marginBottom: SPACING.md,
+    lineHeight: 24,
+  },
+  bannerButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.white,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.sm,
+    borderRadius: BORDER_RADIUS.full,
+    alignSelf: 'flex-start',
+    gap: 4,
+  },
+  bannerButtonText: {
+    fontFamily: FONTS.bold,
+    fontSize: FONT_SIZES.sm,
+    color: COLORS.gray[800],
+  },
+  // Stats
+  statsRow: {
+    flexDirection: 'row',
+    paddingHorizontal: SPACING.lg,
+    marginTop: SPACING.lg,
+    gap: SPACING.sm,
+  },
+  statCard: {
+    flex: 1,
+    backgroundColor: COLORS.white,
+    borderRadius: BORDER_RADIUS.xl,
+    padding: SPACING.md,
+    ...SHADOWS.card,
+    borderWidth: 1,
+    borderColor: 'rgba(108, 58, 225, 0.05)',
+  },
+  statIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: SPACING.xs,
+    marginBottom: SPACING.sm,
   },
-  statsValue: {
+  statValue: {
     fontFamily: FONTS.bold,
     fontSize: FONT_SIZES.xl,
-    color: COLORS.gray[800],
-    textAlign: 'center',
+    color: COLORS.gray[900],
   },
-  statsLabel: {
+  statLabel: {
     fontFamily: FONTS.regular,
     fontSize: FONT_SIZES.xs,
-    color: COLORS.gray[600],
-    textAlign: 'center',
+    color: COLORS.gray[400],
     marginTop: 2,
   },
-  sectionContainer: {
-    marginTop: SPACING.xl,
-    paddingHorizontal: SPACING.md,
+  statDot: {
+    position: 'absolute',
+    top: SPACING.sm,
+    right: SPACING.sm,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: COLORS.accent[500],
   },
-  sectionTitle: {
-    fontFamily: FONTS.medium,
-    fontSize: FONT_SIZES.lg,
-    color: COLORS.gray[800],
-    marginBottom: SPACING.md,
-  },
-  taskCard: {
-    marginBottom: SPACING.md,
-    padding: SPACING.md,
-  },
-  taskHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: SPACING.xs,
-  },
-  taskTitle: {
-    fontFamily: FONTS.medium,
-    fontSize: FONT_SIZES.md,
-    color: COLORS.gray[800],
-    flex: 1,
-  },
-  taskGroup: {
-    fontFamily: FONTS.regular,
-    fontSize: FONT_SIZES.sm,
-    color: COLORS.gray[600],
-    marginBottom: SPACING.xs,
-  },
-  taskDescription: {
-    fontFamily: FONTS.regular,
-    fontSize: FONT_SIZES.sm,
-    color: COLORS.gray[700],
-    marginTop: SPACING.xs,
-  },
-  taskMeta: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: SPACING.sm,
-  },
-  taskDate: {
-    fontFamily: FONTS.regular,
-    fontSize: FONT_SIZES.sm,
-    color: COLORS.gray[500],
-    marginLeft: SPACING.xs,
-  },
-  dueSoonContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: SPACING.sm,
-  },
-  dueSoonText: {
-    fontFamily: FONTS.medium,
-    fontSize: FONT_SIZES.xs,
-    color: COLORS.warning[600],
-    marginLeft: SPACING.xs,
-  },
-  emptyContainer: {
-    padding: SPACING.xl,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: COLORS.white,
-    borderRadius: 16,
-    marginBottom: SPACING.md,
-  },
-  emptyText: {
-    fontFamily: FONTS.regular,
-    fontSize: FONT_SIZES.md,
-    color: COLORS.gray[500],
-  },
-  viewAllButton: {
-    padding: SPACING.md,
-    alignItems: 'center',
-  },
-  viewAllText: {
-    fontFamily: FONTS.medium,
-    fontSize: FONT_SIZES.md,
-    color: COLORS.primary[600],
-  },
+  // Section
   section: {
     marginTop: SPACING.xl,
-    paddingHorizontal: SPACING.md,
+    paddingHorizontal: SPACING.lg,
   },
   sectionHeader: {
     flexDirection: 'row',
@@ -633,140 +700,218 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: SPACING.md,
   },
-  seeAllButton: {
+  sectionTitleRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: SPACING.sm,
+  },
+  sectionTitle: {
+    fontFamily: FONTS.bold,
+    fontSize: FONT_SIZES.lg,
+    color: COLORS.gray[900],
+  },
+  countBadge: {
+    backgroundColor: COLORS.primary[100],
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: BORDER_RADIUS.full,
+  },
+  countBadgeText: {
+    fontFamily: FONTS.bold,
+    fontSize: FONT_SIZES.xs,
+    color: COLORS.primary[600],
   },
   seeAllText: {
     fontFamily: FONTS.medium,
-    fontSize: FONT_SIZES.md,
-    color: COLORS.primary[600],
-    marginRight: SPACING.xs,
+    fontSize: FONT_SIZES.sm,
+    color: COLORS.primary[500],
   },
-  tasksScrollContent: {
-    padding: SPACING.md,
+  seeAllMuted: {
+    fontFamily: FONTS.regular,
+    fontSize: FONT_SIZES.xs,
+    color: COLORS.gray[400],
   },
-  taskIconContainer: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: COLORS.primary[100],
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: SPACING.md,
+  // Groups Carousel
+  groupsScroll: {
+    gap: SPACING.md,
+    paddingRight: SPACING.lg,
   },
-  editButton: {
-    padding: SPACING.xs,
-  },
-  submissionCard: {
+  groupMiniCard: {
+    width: 180,
     backgroundColor: COLORS.white,
-    borderRadius: 8,
+    borderRadius: BORDER_RADIUS.xl,
     padding: SPACING.md,
-    marginBottom: SPACING.md,
+    ...SHADOWS.card,
     borderWidth: 1,
-    borderColor: COLORS.gray[200],
+    borderColor: 'rgba(108, 58, 225, 0.05)',
   },
-  submissionHeader: {
+  groupMiniTop: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: SPACING.sm,
   },
-  submissionTitle: {
-    fontFamily: FONTS.medium,
-    fontSize: FONT_SIZES.md,
-    color: COLORS.gray[800],
-  },
-  submissionDate: {
-    fontFamily: FONTS.regular,
-    fontSize: FONT_SIZES.sm,
-    color: COLORS.gray[500],
-  },
-  submissionDescription: {
-    fontFamily: FONTS.regular,
-    fontSize: FONT_SIZES.sm,
-    color: COLORS.gray[600],
-    marginBottom: SPACING.sm,
-  },
-  submissionFile: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: COLORS.primary[100],
-    padding: SPACING.sm,
-    borderRadius: 4,
-  },
-  submissionFileText: {
-    fontFamily: FONTS.medium,
-    fontSize: FONT_SIZES.sm,
-    color: COLORS.primary[700],
-    marginLeft: SPACING.xs,
-  },
-  groupContainer: {
-    marginBottom: SPACING.md,
-  },
-  groupCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: SPACING.md,
-  },
-  groupIconContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: COLORS.primary[100],
+  groupMiniIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 12,
+    backgroundColor: COLORS.primary[50],
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: SPACING.md,
   },
-  groupInfo: {
-    flex: 1,
-  },
-  groupName: {
-    fontFamily: FONTS.medium,
+  groupMiniName: {
+    fontFamily: FONTS.bold,
     fontSize: FONT_SIZES.md,
-    color: COLORS.gray[800],
+    color: COLORS.gray[900],
+    marginBottom: 2,
   },
-  groupDescription: {
-    fontFamily: FONTS.regular,
-    fontSize: FONT_SIZES.sm,
-    color: COLORS.gray[600],
-    marginTop: 2,
-  },
-  groupDate: {
+  groupMiniMeta: {
     fontFamily: FONTS.regular,
     fontSize: FONT_SIZES.xs,
-    color: COLORS.gray[500],
-    marginTop: 2,
+    color: COLORS.gray[400],
+    marginBottom: SPACING.sm,
   },
-  expandIcon: {
-    fontFamily: FONTS.medium,
-    fontSize: FONT_SIZES.md,
-    color: COLORS.gray[500],
-  },
-  tasksContainer: {
-    marginTop: SPACING.xs,
-    backgroundColor: COLORS.white,
-    borderRadius: 12,
-    padding: SPACING.sm,
-    borderWidth: 1,
-    borderColor: COLORS.gray[200],
-  },
-  taskItem: {
+  groupMiniProgress: {
     flexDirection: 'row',
-    alignItems: 'center',
-    padding: SPACING.sm,
-    borderRadius: 8,
-    backgroundColor: COLORS.gray[50],
+    justifyContent: 'space-between',
     marginBottom: SPACING.xs,
   },
-
-  emptyTaskContainer: {
+  groupMiniProgressLabel: {
+    fontFamily: FONTS.regular,
+    fontSize: 10,
+    color: COLORS.gray[400],
+  },
+  groupMiniProgressValue: {
+    fontFamily: FONTS.bold,
+    fontSize: 10,
+    color: COLORS.gray[700],
+  },
+  // Task Card
+  taskCard: {
+    backgroundColor: COLORS.white,
+    borderRadius: BORDER_RADIUS.xl,
     padding: SPACING.md,
+    marginBottom: SPACING.sm,
+    ...SHADOWS.card,
+    borderWidth: 1,
+    borderColor: 'rgba(108, 58, 225, 0.05)',
+  },
+  taskCardTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: SPACING.sm,
+  },
+  taskGroupLabel: {
+    fontFamily: FONTS.bold,
+    fontSize: 10,
+    color: COLORS.primary[500],
+    letterSpacing: 0.5,
+  },
+  taskCardTitle: {
+    fontFamily: FONTS.bold,
+    fontSize: FONT_SIZES.md,
+    color: COLORS.gray[900],
+    marginBottom: SPACING.sm,
+  },
+  taskCardBottom: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
   },
-  emptyTaskText: {
+  taskCardDate: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  taskCardDateText: {
+    fontFamily: FONTS.regular,
+    fontSize: FONT_SIZES.xs,
+    color: COLORS.gray[400],
+  },
+  // Activity
+  activityCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: COLORS.white,
+    borderRadius: BORDER_RADIUS.lg,
+    padding: SPACING.md,
+    marginBottom: SPACING.sm,
+    borderWidth: 1,
+    borderColor: COLORS.gray[100],
+  },
+  activityLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  activityDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: COLORS.primary[500],
+    marginRight: SPACING.md,
+  },
+  activityInfo: {
+    flex: 1,
+  },
+  activityTitle: {
+    fontFamily: FONTS.medium,
+    fontSize: FONT_SIZES.sm,
+    color: COLORS.gray[800],
+  },
+  activityDate: {
+    fontFamily: FONTS.regular,
+    fontSize: FONT_SIZES.xs,
+    color: COLORS.gray[400],
+    marginTop: 2,
+  },
+  gradeBadge: {
+    backgroundColor: COLORS.primary[50],
+    paddingHorizontal: SPACING.sm,
+    paddingVertical: SPACING.xs,
+    borderRadius: BORDER_RADIUS.md,
+  },
+  gradeText: {
+    fontFamily: FONTS.bold,
+    fontSize: FONT_SIZES.sm,
+    color: COLORS.primary[600],
+  },
+  // Empty
+  emptyCard: {
+    backgroundColor: COLORS.white,
+    borderRadius: BORDER_RADIUS.xl,
+    padding: SPACING.xl,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: COLORS.gray[100],
+    gap: SPACING.sm,
+  },
+  emptyText: {
     fontFamily: FONTS.regular,
     fontSize: FONT_SIZES.sm,
-    color: COLORS.gray[500],
+    color: COLORS.gray[400],
+  },
+  // FAB
+  fab: {
+    position: 'absolute',
+    bottom: 24,
+    alignSelf: 'center',
+    ...SHADOWS.lg,
+  },
+  fabGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: SPACING.lg,
+    paddingVertical: SPACING.md,
+    borderRadius: BORDER_RADIUS.full,
+    gap: SPACING.sm,
+  },
+  fabText: {
+    fontFamily: FONTS.bold,
+    fontSize: FONT_SIZES.md,
+    color: COLORS.white,
   },
 });

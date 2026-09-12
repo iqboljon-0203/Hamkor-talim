@@ -1,4 +1,4 @@
-import { useEffect, useState, createContext, useContext } from 'react';
+import React, { useEffect, useState, createContext, useContext } from 'react';
 import { supabase, UserProfile, UserRole } from '@/lib/supabase';
 import { Session } from '@supabase/supabase-js';
 
@@ -16,6 +16,9 @@ type AuthContextType = {
     redirectTo?: string,
   ) => Promise<{ error: any }>;
   signOut: () => Promise<{ error: any }>;
+  resetPassword: (email: string) => Promise<{ error: any }>;
+  updatePassword: (newPassword: string) => Promise<{ error: any }>;
+  updateProfileName: (newName: string) => Promise<{ error: any }>;
   isTeacher: boolean;
   refreshProfile: () => Promise<void>;
 };
@@ -28,7 +31,7 @@ export function AuthProvider({
   children,
 }: {
   children: React.ReactNode;
-}): JSX.Element {
+}): React.JSX.Element {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
@@ -260,6 +263,42 @@ export function AuthProvider({
     }
   };
 
+  const resetPassword = async (email: string) => {
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email);
+      return { error };
+    } catch (error: any) {
+      return { error };
+    }
+  };
+
+  const updatePassword = async (newPassword: string) => {
+    try {
+      const { error } = await supabase.auth.updateUser({
+        password: newPassword,
+      });
+      return { error };
+    } catch (error: any) {
+      return { error };
+    }
+  };
+
+  const updateProfileName = async (newName: string) => {
+    try {
+      if (!user) throw new Error('Foydalanuvchi topilmadi');
+      const { error } = await supabase
+        .from('profiles')
+        .update({ full_name: newName.trim() })
+        .eq('id', user.id);
+
+      if (error) throw error;
+      await refreshProfile();
+      return { error: null };
+    } catch (error: any) {
+      return { error };
+    }
+  };
+
   // Check if the user is a teacher
   const isTeacher = user?.role === 'teacher';
 
@@ -270,6 +309,9 @@ export function AuthProvider({
     signIn,
     signUp,
     signOut,
+    resetPassword,
+    updatePassword,
+    updateProfileName,
     isTeacher,
     refreshProfile,
   };

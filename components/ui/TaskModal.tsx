@@ -8,7 +8,8 @@ import Button from './Button';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import * as DocumentPicker from 'expo-document-picker';
 import { Upload, X } from 'lucide-react-native';
-import { Task } from '@/lib/supabase';
+import { Task, Group } from '@/lib/supabase';
+import { ScrollView } from 'react-native';
 
 interface TaskModalProps {
   isVisible: boolean;
@@ -17,9 +18,12 @@ interface TaskModalProps {
     title: string;
     description: string;
     due_date: string;
+    group_id?: string;
     file?: { uri: string; type: string; name: string };
   }) => Promise<void>;
   initialData?: Task;
+  groups?: Group[];
+  defaultGroupId?: string;
 }
 
 const truncateFileName = (name: string, maxLength = 24) => {
@@ -42,6 +46,8 @@ const TaskModal: React.FC<TaskModalProps> = ({
   onClose,
   onSubmit,
   initialData,
+  groups,
+  defaultGroupId,
 }) => {
   const { showToast } = useToast();
   const [taskTitle, setTaskTitle] = useState(initialData?.title || '');
@@ -49,6 +55,9 @@ const TaskModal: React.FC<TaskModalProps> = ({
     initialData?.description || '',
   );
   const [taskDueDate, setTaskDueDate] = useState(initialData?.due_date || '');
+  const [selectedGroupId, setSelectedGroupId] = useState(
+    initialData?.group_id || defaultGroupId || (groups && groups.length > 0 ? groups[0].id : ''),
+  );
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [selectedDate, setSelectedDate] = useState(
     initialData?.due_date ? new Date(initialData.due_date) : new Date(),
@@ -79,6 +88,7 @@ const TaskModal: React.FC<TaskModalProps> = ({
       setTaskDescription(initialData.description);
       setTaskDueDate(initialData.due_date);
       setSelectedDate(new Date(initialData.due_date));
+      setSelectedGroupId(initialData.group_id);
       if (initialData.file_url) {
         setSelectedFile({
           uri: initialData.file_url,
@@ -95,10 +105,11 @@ const TaskModal: React.FC<TaskModalProps> = ({
       setTaskDescription('');
       setTaskDueDate(today.toISOString().split('T')[0]);
       setSelectedDate(today);
+      setSelectedGroupId(defaultGroupId || (groups && groups.length > 0 ? groups[0].id : ''));
       setSelectedFile(null);
     }
     setError('');
-  }, [initialData, isVisible]);
+  }, [initialData, isVisible, defaultGroupId, groups]);
 
   const handleDateChange = (event: any, date?: Date) => {
     setShowDatePicker(false);
@@ -141,12 +152,18 @@ const TaskModal: React.FC<TaskModalProps> = ({
       return;
     }
 
+    if (groups && groups.length > 0 && !selectedGroupId) {
+      setError("Iltimos, vazifa uchun guruhni tanlang");
+      return;
+    }
+
     try {
       setSubmitting(true);
       await onSubmit({
         title: taskTitle,
         description: taskDescription,
         due_date: taskDueDate,
+        group_id: selectedGroupId || undefined,
         file:
           selectedFile && !selectedFile.isExisting
             ? {
@@ -187,6 +204,28 @@ const TaskModal: React.FC<TaskModalProps> = ({
         </Text>
 
         {error ? <Text style={styles.errorText}>{error}</Text> : null}
+
+        {groups && groups.length > 0 && !initialData && (
+          <View style={styles.groupPickerContainer}>
+            <Text style={styles.groupPickerLabel}>Guruhni tanlang:</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.groupChipsScroll}>
+              {groups.map((group) => {
+                const isSelected = selectedGroupId === group.id;
+                return (
+                  <TouchableOpacity
+                    key={group.id}
+                    style={[styles.groupChip, isSelected && styles.groupChipActive]}
+                    onPress={() => setSelectedGroupId(group.id)}
+                  >
+                    <Text style={[styles.groupChipText, isSelected && styles.groupChipTextActive]}>
+                      {group.name}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+          </View>
+        )}
 
         <Input
           label="Vazifa nomi"
@@ -351,6 +390,39 @@ const styles = StyleSheet.create({
   modalButton: {
     marginLeft: SPACING.md,
     minWidth: 100,
+  },
+  groupPickerContainer: {
+    marginBottom: SPACING.md,
+  },
+  groupPickerLabel: {
+    fontFamily: FONTS.medium,
+    fontSize: FONT_SIZES.sm,
+    color: COLORS.gray[700],
+    marginBottom: SPACING.xs,
+  },
+  groupChipsScroll: {
+    flexDirection: 'row',
+  },
+  groupChip: {
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.xs,
+    borderRadius: 16,
+    backgroundColor: COLORS.gray[100],
+    marginRight: SPACING.sm,
+    borderWidth: 1,
+    borderColor: COLORS.gray[300],
+  },
+  groupChipActive: {
+    backgroundColor: COLORS.primary[500],
+    borderColor: COLORS.primary[500],
+  },
+  groupChipText: {
+    fontFamily: FONTS.medium,
+    fontSize: FONT_SIZES.sm,
+    color: COLORS.gray[700],
+  },
+  groupChipTextActive: {
+    color: COLORS.white,
   },
 });
 

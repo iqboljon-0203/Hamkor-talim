@@ -7,21 +7,25 @@ import {
   StyleProp,
   ViewStyle,
   TextStyle,
-  GestureResponderEvent
+  GestureResponderEvent,
+  View,
 } from 'react-native';
-import { COLORS, FONTS, FONT_SIZES, SPACING, BORDER_RADIUS } from '@/constants/Theme';
+import { LinearGradient } from 'expo-linear-gradient';
+import { COLORS, FONTS, FONT_SIZES, SPACING, BORDER_RADIUS, GRADIENTS } from '@/constants/Theme';
 
 interface ButtonProps {
   title: string;
   onPress: (event: GestureResponderEvent) => void;
-  type?: 'primary' | 'secondary' | 'outline' | 'ghost';
+  type?: 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger';
   size?: 'sm' | 'md' | 'lg';
   disabled?: boolean;
   loading?: boolean;
   fullWidth?: boolean;
   icon?: React.ReactNode;
+  iconRight?: React.ReactNode;
   style?: StyleProp<ViewStyle>;
   textStyle?: StyleProp<TextStyle>;
+  gradient?: boolean;
 }
 
 const Button: React.FC<ButtonProps> = ({
@@ -33,10 +37,11 @@ const Button: React.FC<ButtonProps> = ({
   loading = false,
   fullWidth = false,
   icon,
+  iconRight,
   style,
   textStyle,
+  gradient = false,
 }) => {
-  // Determine button styles based on type
   const getButtonStyles = () => {
     switch (type) {
       case 'primary':
@@ -46,18 +51,23 @@ const Button: React.FC<ButtonProps> = ({
         };
       case 'secondary':
         return {
-          backgroundColor: disabled ? COLORS.gray[200] : COLORS.accent[100],
+          backgroundColor: disabled ? COLORS.gray[200] : COLORS.primary[50],
           borderColor: COLORS.transparent,
         };
       case 'outline':
         return {
           backgroundColor: COLORS.transparent,
           borderColor: disabled ? COLORS.gray[300] : COLORS.primary[500],
-          borderWidth: 1,
+          borderWidth: 1.5,
         };
       case 'ghost':
         return {
           backgroundColor: COLORS.transparent,
+          borderColor: COLORS.transparent,
+        };
+      case 'danger':
+        return {
+          backgroundColor: disabled ? COLORS.gray[300] : COLORS.error[500],
           borderColor: COLORS.transparent,
         };
       default:
@@ -68,58 +78,47 @@ const Button: React.FC<ButtonProps> = ({
     }
   };
 
-  // Determine text styles based on type
   const getTextStyles = () => {
     switch (type) {
       case 'primary':
-        return {
-          color: COLORS.white,
-        };
+        return { color: COLORS.white };
       case 'secondary':
-        return {
-          color: COLORS.accent[700],
-        };
+        return { color: COLORS.primary[600] };
       case 'outline':
-        return {
-          color: disabled ? COLORS.gray[400] : COLORS.primary[500],
-        };
+        return { color: disabled ? COLORS.gray[400] : COLORS.primary[500] };
       case 'ghost':
-        return {
-          color: disabled ? COLORS.gray[400] : COLORS.primary[500],
-        };
+        return { color: disabled ? COLORS.gray[400] : COLORS.primary[500] };
+      case 'danger':
+        return { color: COLORS.white };
       default:
-        return {
-          color: COLORS.white,
-        };
+        return { color: COLORS.white };
     }
   };
 
-  // Determine button size styles
   const getSizeStyles = () => {
     switch (size) {
       case 'sm':
         return {
-          paddingVertical: SPACING.xs,
-          paddingHorizontal: SPACING.sm,
-          borderRadius: BORDER_RADIUS.sm,
+          paddingVertical: SPACING.xs + 2,
+          paddingHorizontal: SPACING.md,
+          borderRadius: BORDER_RADIUS.md,
         };
       case 'lg':
         return {
           paddingVertical: SPACING.md,
           paddingHorizontal: SPACING.lg,
-          borderRadius: BORDER_RADIUS.lg,
+          borderRadius: BORDER_RADIUS.xl,
         };
       case 'md':
       default:
         return {
-          paddingVertical: SPACING.sm,
-          paddingHorizontal: SPACING.md,
-          borderRadius: BORDER_RADIUS.md,
+          paddingVertical: SPACING.sm + 2,
+          paddingHorizontal: SPACING.lg,
+          borderRadius: BORDER_RADIUS.lg,
         };
     }
   };
 
-  // Determine text size based on button size
   const getTextSize = () => {
     switch (size) {
       case 'sm':
@@ -145,6 +144,43 @@ const Button: React.FC<ButtonProps> = ({
     fontSize: getTextSize(),
   };
 
+  const renderContent = () => (
+    <>
+      {loading ? (
+        <ActivityIndicator
+          color={type === 'primary' || type === 'danger' ? COLORS.white : COLORS.primary[500]}
+          size="small"
+        />
+      ) : (
+        <>
+          {icon && <View style={styles.iconLeft}>{icon}</View>}
+          <Text style={[textStyles, textStyle]}>{title}</Text>
+          {iconRight && <View style={styles.iconRight}>{iconRight}</View>}
+        </>
+      )}
+    </>
+  );
+
+  if (gradient && type === 'primary' && !disabled) {
+    return (
+      <TouchableOpacity
+        onPress={onPress}
+        disabled={disabled || loading}
+        activeOpacity={0.8}
+        style={[fullWidth && styles.fullWidth, style]}
+      >
+        <LinearGradient
+          colors={[GRADIENTS.primary[0], GRADIENTS.primary[1]]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 0 }}
+          style={[styles.button, getSizeStyles(), fullWidth && styles.fullWidth]}
+        >
+          {renderContent()}
+        </LinearGradient>
+      </TouchableOpacity>
+    );
+  }
+
   return (
     <TouchableOpacity
       style={[buttonStyles, style]}
@@ -152,19 +188,7 @@ const Button: React.FC<ButtonProps> = ({
       disabled={disabled || loading}
       activeOpacity={0.7}
     >
-      {loading ? (
-        <ActivityIndicator
-          color={type === 'primary' ? COLORS.white : COLORS.primary[500]}
-          size="small"
-        />
-      ) : (
-        <>
-          {icon && <>{icon}</>}
-          <Text style={[textStyles, textStyle, icon ? { marginLeft: SPACING.xs } : undefined]}>
-            {title}
-          </Text>
-        </>
-      )}
+      {renderContent()}
     </TouchableOpacity>
   );
 };
@@ -181,6 +205,12 @@ const styles = StyleSheet.create({
   text: {
     fontFamily: FONTS.medium,
     textAlign: 'center',
+  },
+  iconLeft: {
+    marginRight: SPACING.sm,
+  },
+  iconRight: {
+    marginLeft: SPACING.sm,
   },
 });
 

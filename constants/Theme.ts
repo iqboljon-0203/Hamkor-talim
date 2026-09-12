@@ -1,20 +1,20 @@
-// Theme constants for the app
+// Theme constants for the app — Premium Redesign
 
 export const COLORS = {
-  // Primary colors
+  // Primary colors (Indigo-Violet)
   primary: {
-    50: '#EFF6FF',
-    100: '#DBEAFE',
-    200: '#BFDBFE',
-    300: '#93C5FD',
-    400: '#60A5FA',
-    500: '#3B82F6',
-    600: '#2563EB',
-    700: '#1D4ED8',
-    800: '#1E40AF',
-    900: '#1E3A8A',
+    50: '#F5F3FF',
+    100: '#EDE9FE',
+    200: '#DDD6FE',
+    300: '#C4B5FD',
+    400: '#A78BFA',
+    500: '#6C3AE1',
+    600: '#5B21B6',
+    700: '#4C1D95',
+    800: '#3B0764',
+    900: '#2E1065',
   },
-  // Secondary colors
+  // Secondary colors (Cyan)
   secondary: {
     50: '#ECFEFF',
     100: '#CFFAFE',
@@ -27,18 +27,18 @@ export const COLORS = {
     800: '#155E75',
     900: '#164E63',
   },
-  // Accent colors
+  // Accent colors (Pink)
   accent: {
-    50: '#F5F3FF',
-    100: '#EDE9FE',
-    200: '#DDD6FE',
-    300: '#C4B5FD',
-    400: '#A78BFA',
-    500: '#8B5CF6',
-    600: '#7C3AED',
-    700: '#6D28D9',
-    800: '#5B21B6',
-    900: '#4C1D95',
+    50: '#FDF2F8',
+    100: '#FCE7F3',
+    200: '#FBCFE8',
+    300: '#F9A8D4',
+    400: '#F472B6',
+    500: '#EC4899',
+    600: '#DB2777',
+    700: '#BE185D',
+    800: '#9D174D',
+    900: '#831843',
   },
   // Success colors
   success: {
@@ -81,21 +81,47 @@ export const COLORS = {
   },
   // Neutral colors
   gray: {
-    50: '#F9FAFB',
-    100: '#F3F4F6',
-    200: '#E5E7EB',
-    300: '#D1D5DB',
-    400: '#9CA3AF',
-    500: '#6B7280',
-    600: '#4B5563',
-    700: '#374151',
-    800: '#1F2937',
-    900: '#111827',
+    50: '#F8FAFC',
+    100: '#F1F5F9',
+    200: '#E2E8F0',
+    300: '#CBD5E1',
+    400: '#94A3B8',
+    500: '#64748B',
+    600: '#475569',
+    700: '#334155',
+    800: '#1E293B',
+    900: '#0F172A',
   },
   // Base colors
   white: '#FFFFFF',
   black: '#000000',
   transparent: 'transparent',
+  // App-specific
+  background: '#F5F3FF',
+  surface: '#FFFFFF',
+  surfaceElevated: '#FEFEFF',
+};
+
+// Gradient definitions (start/end colors for LinearGradient)
+export const GRADIENTS = {
+  primary: ['#6C3AE1', '#4F46E5'] as const,
+  primaryLight: ['#A78BFA', '#6C3AE1'] as const,
+  accent: ['#EC4899', '#8B5CF6'] as const,
+  warm: ['#F59E0B', '#EF4444'] as const,
+  surface: ['#F5F3FF', '#EDE9FE'] as const,
+  dark: ['#1E293B', '#0F172A'] as const,
+  banner: ['#6C3AE1', '#4338CA'] as const,
+};
+
+// Badge / Status colors
+export const STATUS_COLORS = {
+  active: { bg: '#D1FAE5', text: '#059669' },
+  pending: { bg: '#FEF3C7', text: '#D97706' },
+  overdue: { bg: '#FEE2E2', text: '#DC2626' },
+  submitted: { bg: '#DBEAFE', text: '#2563EB' },
+  excellent: { bg: '#D1FAE5', text: '#059669' },
+  average: { bg: '#FEF3C7', text: '#D97706' },
+  info: { bg: '#EDE9FE', text: '#6C3AE1' },
 };
 
 export const FONTS = {
@@ -105,10 +131,10 @@ export const FONTS = {
 };
 
 export const FONT_SIZES = {
-  xs: 12,
-  sm: 14,
-  md: 16,
-  lg: 18,
+  xs: 11,
+  sm: 13,
+  md: 15,
+  lg: 17,
   xl: 20,
   '2xl': 24,
   '3xl': 30,
@@ -127,43 +153,54 @@ export const SPACING = {
 
 const SHADOWS = {
   sm: {
-    shadowColor: '#000',
+    shadowColor: '#6C3AE1',
     shadowOffset: {
       width: 0,
       height: 1,
     },
-    shadowOpacity: 0.18,
-    shadowRadius: 1.0,
+    shadowOpacity: 0.06,
+    shadowRadius: 2,
     elevation: 1,
   },
   md: {
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.23,
-    shadowRadius: 2.62,
-    elevation: 4,
-  },
-  lg: {
-    shadowColor: '#000',
+    shadowColor: '#6C3AE1',
     shadowOffset: {
       width: 0,
       height: 4,
     },
-    shadowOpacity: 0.3,
-    shadowRadius: 4.65,
-    elevation: 8,
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  lg: {
+    shadowColor: '#6C3AE1',
+    shadowOffset: {
+      width: 0,
+      height: 8,
+    },
+    shadowOpacity: 0.12,
+    shadowRadius: 16,
+    elevation: 6,
+  },
+  card: {
+    shadowColor: '#6C3AE1',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 2,
   },
 };
 
 export const BORDER_RADIUS = {
-  sm: 4,
-  md: 8,
-  lg: 12,
-  xl: 16,
+  sm: 6,
+  md: 10,
+  lg: 14,
+  xl: 18,
   '2xl': 24,
+  '3xl': 30,
   full: 9999,
 };
 
@@ -174,4 +211,6 @@ export default {
   SPACING,
   SHADOWS,
   BORDER_RADIUS,
+  GRADIENTS,
+  STATUS_COLORS,
 };

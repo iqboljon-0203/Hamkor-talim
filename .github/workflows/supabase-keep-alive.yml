@@ -1,0 +1,19 @@
+name: Supabase Keep Alive
+
+on:
+  schedule:
+    # Har kuni UTC vaqti bilan soat 08:00 da (Toshkent vaqti bilan 13:00) ishga tushadi
+    - cron: '0 8 * * *'
+  # GitHub sahifasidan qo'lda ishga tushirish uchun
+  workflow_dispatch:
+
+jobs:
+  ping-supabase:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Supabase API ga Ping yuborish
+        run: |
+          curl -s -o /dev/null -w "%{http_code}" -H "apikey: ${{ secrets.SUPABASE_ANON_KEY }}" \
+               -H "Authorization: Bearer ${{ secrets.SUPABASE_ANON_KEY }}" \
+               "${{ secrets.SUPABASE_URL }}/rest/v1/profiles?select=id&limit=1"
+          echo " Supabase'ga ping yuborildi!"

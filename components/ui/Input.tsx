@@ -56,12 +56,12 @@ const Input: React.FC<InputProps> = ({
   const [isFocused, setIsFocused] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
-  const handleFocus = (e: NativeSyntheticEvent<TextInputFocusEventData>) => {
+  const handleFocus = (e: any) => {
     setIsFocused(true);
     onFocus && onFocus(e);
   };
 
-  const handleBlur = (e: NativeSyntheticEvent<TextInputFocusEventData>) => {
+  const handleBlur = (e: any) => {
     setIsFocused(false);
     onBlur && onBlur(e);
   };
@@ -86,9 +86,9 @@ const Input: React.FC<InputProps> = ({
         <TextInput
           style={[
             styles.input,
-            icon && styles.inputWithIcon,
-            secureTextEntry && styles.inputWithToggle,
-            multiline && styles.multilineInput,
+            icon ? styles.inputWithIcon : undefined,
+            secureTextEntry ? styles.inputWithToggle : undefined,
+            multiline ? styles.multilineInput : undefined,
             inputStyle,
           ]}
           placeholder={placeholder}
@@ -108,9 +108,9 @@ const Input: React.FC<InputProps> = ({
         {secureTextEntry && (
           <TouchableOpacity style={styles.toggleButton} onPress={toggleShowPassword}>
             {showPassword ? (
-              <EyeOff size={20} color={COLORS.gray[500]} />
+              <EyeOff size={20} color={COLORS.gray[400]} />
             ) : (
-              <Eye size={20} color={COLORS.gray[500]} />
+              <Eye size={20} color={COLORS.gray[400]} />
             )}
           </TouchableOpacity>
         )}
@@ -128,22 +128,22 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.medium,
     fontSize: FONT_SIZES.sm,
     color: COLORS.gray[700],
-    marginBottom: SPACING.xs,
+    marginBottom: SPACING.xs + 2,
   },
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: COLORS.gray[300],
-    borderRadius: BORDER_RADIUS.md,
-    backgroundColor: COLORS.white,
+    borderWidth: 1.5,
+    borderColor: COLORS.gray[200],
+    borderRadius: BORDER_RADIUS.lg,
+    backgroundColor: COLORS.gray[50],
   },
   input: {
     flex: 1,
     fontFamily: FONTS.regular,
     fontSize: FONT_SIZES.md,
     color: COLORS.gray[800],
-    paddingVertical: SPACING.sm,
+    paddingVertical: SPACING.sm + 2,
     paddingHorizontal: SPACING.md,
   },
   inputWithIcon: {
@@ -157,6 +157,12 @@ const styles = StyleSheet.create({
   },
   focusedInput: {
     borderColor: COLORS.primary[500],
+    backgroundColor: COLORS.white,
+    shadowColor: COLORS.primary[500],
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.12,
+    shadowRadius: 8,
+    elevation: 2,
   },
   errorInput: {
     borderColor: COLORS.error[500],
@@ -181,7 +187,7 @@ const styles = StyleSheet.create({
   },
   disabledInput: {
     backgroundColor: COLORS.gray[100],
-    borderColor: COLORS.gray[300],
+    borderColor: COLORS.gray[200],
   },
 });
 

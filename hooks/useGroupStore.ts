@@ -24,6 +24,9 @@ interface GroupState {
     groupId: string,
     userId: string,
   ) => Promise<{ success: boolean; error?: any }>;
+  deleteGroup: (
+    groupId: string,
+  ) => Promise<{ success: boolean; error?: any }>;
   getGroupMembers: (
     groupId: string,
   ) => Promise<{ members: any[]; error?: any }>;
@@ -254,6 +257,24 @@ export const useGroupStore = create<GroupState>((set, get) => ({
 
       // Refresh the groups
       await get().fetchGroups(userId, false);
+
+      return { success: true };
+    } catch (error: any) {
+      return { success: false, error: error.message };
+    }
+  },
+
+  deleteGroup: async (groupId) => {
+    try {
+      const { error } = await supabase
+        .from('groups')
+        .delete()
+        .eq('id', groupId);
+
+      if (error) throw error;
+
+      const { groups } = get();
+      set({ groups: groups.filter((g) => g.id !== groupId) });
 
       return { success: true };
     } catch (error: any) {

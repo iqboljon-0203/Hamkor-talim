@@ -22,7 +22,9 @@ interface CardProps {
   footerStyle?: StyleProp<ViewStyle>;
   footer?: React.ReactNode;
   disabled?: boolean;
-  elevation?: 'sm' | 'md' | 'lg';
+  elevation?: 'sm' | 'md' | 'lg' | 'card';
+  variant?: 'default' | 'outlined' | 'flat';
+  noPadding?: boolean;
 }
 
 const Card: React.FC<CardProps> = ({
@@ -36,7 +38,9 @@ const Card: React.FC<CardProps> = ({
   footerStyle,
   footer,
   disabled = false,
-  elevation = 'md',
+  elevation = 'card',
+  variant = 'default',
+  noPadding = false,
 }) => {
   const CardComponent = onPress ? TouchableOpacity : View;
 
@@ -46,15 +50,35 @@ const Card: React.FC<CardProps> = ({
         return SHADOWS.sm;
       case 'lg':
         return SHADOWS.lg;
+      case 'card':
+        return SHADOWS.card;
       case 'md':
       default:
         return SHADOWS.md;
     }
   };
 
+  const getVariantStyle = () => {
+    switch (variant) {
+      case 'outlined':
+        return {
+          borderWidth: 1,
+          borderColor: COLORS.gray[200],
+        };
+      case 'flat':
+        return {
+          shadowColor: 'transparent',
+          shadowOpacity: 0,
+          elevation: 0,
+        };
+      default:
+        return {};
+    }
+  };
+
   return (
     <CardComponent
-      style={[styles.container, getShadow(), style]}
+      style={[styles.container, getShadow(), getVariantStyle(), style]}
       onPress={onPress}
       disabled={disabled}
       activeOpacity={onPress ? 0.7 : 1}
@@ -65,7 +89,9 @@ const Card: React.FC<CardProps> = ({
           {subtitle && <Text style={styles.subtitle}>{subtitle}</Text>}
         </View>
       )}
-      <View style={[styles.content, contentStyle]}>{children}</View>
+      <View style={[noPadding ? undefined : styles.content, contentStyle]}>
+        {children}
+      </View>
       {footer && <View style={[styles.footer, footerStyle]}>{footer}</View>}
     </CardComponent>
   );
@@ -74,14 +100,16 @@ const Card: React.FC<CardProps> = ({
 const styles = StyleSheet.create({
   container: {
     backgroundColor: COLORS.white,
-    borderRadius: BORDER_RADIUS.lg,
+    borderRadius: BORDER_RADIUS['2xl'],
     overflow: 'hidden',
     marginBottom: SPACING.md,
+    borderWidth: 1,
+    borderColor: 'rgba(108, 58, 225, 0.06)',
   },
   header: {
     padding: SPACING.md,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.gray[200],
+    borderBottomColor: COLORS.gray[100],
   },
   title: {
     fontFamily: FONTS.medium,
@@ -92,7 +120,7 @@ const styles = StyleSheet.create({
   subtitle: {
     fontFamily: FONTS.regular,
     fontSize: FONT_SIZES.sm,
-    color: COLORS.gray[600],
+    color: COLORS.gray[500],
   },
   content: {
     padding: SPACING.md,
@@ -100,7 +128,7 @@ const styles = StyleSheet.create({
   footer: {
     padding: SPACING.md,
     borderTopWidth: 1,
-    borderTopColor: COLORS.gray[200],
+    borderTopColor: COLORS.gray[100],
   },
 });
 

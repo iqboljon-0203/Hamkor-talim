@@ -106,6 +106,10 @@ export const uploadFile = async (
       throw new Error('Tanlangan fayl topilmadi.');
     }
 
+    if (fileInfo.size && fileInfo.size > 15 * 1024 * 1024) {
+      throw new Error("Fayl hajmi juda katta (maksimal 15 MB yuklash mumkin).");
+    }
+
     const fileBase64 = await FileSystem.readAsStringAsync(fileUri, {
       encoding: FileSystem.EncodingType.Base64,
     });

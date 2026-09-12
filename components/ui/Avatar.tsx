@@ -3,12 +3,14 @@ import { View, Text, StyleSheet, Image, StyleProp, ViewStyle, TextStyle } from '
 import { COLORS, FONTS, FONT_SIZES, BORDER_RADIUS } from '@/constants/Theme';
 
 interface AvatarProps {
-  size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl';
+  size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl' | '2xl';
   source?: { uri: string } | null;
   name?: string;
   backgroundColor?: string;
   style?: StyleProp<ViewStyle>;
   textStyle?: StyleProp<TextStyle>;
+  showOnline?: boolean;
+  borderColor?: string;
 }
 
 const Avatar: React.FC<AvatarProps> = ({
@@ -18,44 +20,47 @@ const Avatar: React.FC<AvatarProps> = ({
   backgroundColor,
   style,
   textStyle,
+  showOnline = false,
+  borderColor,
 }) => {
-  // Calculate size in pixels
   const getSizeInPixels = () => {
     switch (size) {
       case 'xs':
         return 24;
       case 'sm':
-        return 32;
+        return 34;
       case 'md':
-        return 40;
+        return 42;
       case 'lg':
         return 56;
       case 'xl':
         return 80;
+      case '2xl':
+        return 100;
       default:
-        return 40;
+        return 42;
     }
   };
 
-  // Get font size based on avatar size
   const getFontSize = () => {
     switch (size) {
       case 'xs':
-        return FONT_SIZES.xs;
+        return 10;
       case 'sm':
-        return FONT_SIZES.sm;
+        return FONT_SIZES.xs;
       case 'md':
-        return FONT_SIZES.md;
+        return FONT_SIZES.sm;
       case 'lg':
         return FONT_SIZES.lg;
       case 'xl':
-        return FONT_SIZES.xl;
+        return FONT_SIZES['2xl'];
+      case '2xl':
+        return FONT_SIZES['3xl'];
       default:
-        return FONT_SIZES.md;
+        return FONT_SIZES.sm;
     }
   };
 
-  // Get initials from name
   const getInitials = () => {
     if (!name) return '?';
     return name
@@ -66,26 +71,25 @@ const Avatar: React.FC<AvatarProps> = ({
       .toUpperCase();
   };
 
-  // Generate a consistent color from name
   const getBackgroundColor = () => {
     if (backgroundColor) return backgroundColor;
-    
-    if (!name) return COLORS.gray[500];
-    
+    if (!name) return COLORS.gray[400];
+
     const colors = [
       COLORS.primary[500],
-      COLORS.secondary[500],
       COLORS.accent[500],
+      COLORS.secondary[500],
       COLORS.success[500],
       COLORS.warning[500],
+      '#8B5CF6',
+      '#06B6D4',
+      '#F43F5E',
     ];
-    
-    // Simple hash function to pick a color based on the name
+
     let hash = 0;
     for (let i = 0; i < name.length; i++) {
       hash = name.charCodeAt(i) + ((hash << 5) - hash);
     }
-    
     return colors[Math.abs(hash) % colors.length];
   };
 
@@ -98,26 +102,50 @@ const Avatar: React.FC<AvatarProps> = ({
     height: sizeInPixels,
     borderRadius: sizeInPixels / 2,
     backgroundColor: bgColor,
+    ...(borderColor
+      ? { borderWidth: 2.5, borderColor }
+      : {}),
   };
 
+  const onlineDotSize = Math.max(sizeInPixels * 0.22, 8);
+
   return (
-    <View style={[styles.container, containerStyle, style]}>
-      {source ? (
-        <Image
-          source={source}
-          style={styles.image}
-          resizeMode="cover"
+    <View style={[styles.wrapper, style]}>
+      <View style={[styles.container, containerStyle]}>
+        {source ? (
+          <Image
+            source={source}
+            style={styles.image}
+            resizeMode="cover"
+          />
+        ) : (
+          <Text style={[styles.text, { fontSize }, textStyle]}>
+            {getInitials()}
+          </Text>
+        )}
+      </View>
+      {showOnline && (
+        <View
+          style={[
+            styles.onlineDot,
+            {
+              width: onlineDotSize,
+              height: onlineDotSize,
+              borderRadius: onlineDotSize / 2,
+              right: 0,
+              bottom: 0,
+            },
+          ]}
         />
-      ) : (
-        <Text style={[styles.text, { fontSize }, textStyle]}>
-          {getInitials()}
-        </Text>
       )}
     </View>
   );
 };
 
 const styles = StyleSheet.create({
+  wrapper: {
+    position: 'relative',
+  },
   container: {
     justifyContent: 'center',
     alignItems: 'center',
@@ -128,8 +156,14 @@ const styles = StyleSheet.create({
     height: '100%',
   },
   text: {
-    fontFamily: FONTS.medium,
+    fontFamily: FONTS.bold,
     color: COLORS.white,
+  },
+  onlineDot: {
+    position: 'absolute',
+    backgroundColor: COLORS.success[500],
+    borderWidth: 2,
+    borderColor: COLORS.white,
   },
 });
 
