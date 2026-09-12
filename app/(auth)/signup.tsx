@@ -19,6 +19,8 @@ import { UserRole } from '@/lib/supabase';
 import * as Linking from 'expo-linking';
 import { useToast } from '@/context/ToastContext';
 
+const Wrapper = Platform.OS === 'ios' ? KeyboardAvoidingView : View;
+
 export default function SignupScreen() {
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
@@ -80,8 +82,8 @@ export default function SignupScreen() {
   const passwordStrength = getPasswordStrength();
 
   return (
-    <SafeAreaView style={styles.container}>
-      <KeyboardAvoidingView
+    <SafeAreaView style={styles.container} edges={['top']}>
+      <Wrapper
         style={styles.keyboardAvoidingView}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
@@ -225,7 +227,7 @@ export default function SignupScreen() {
             </View>
           </View>
         </ScrollView>
-      </KeyboardAvoidingView>
+      </Wrapper>
     </SafeAreaView>
   );
 }
