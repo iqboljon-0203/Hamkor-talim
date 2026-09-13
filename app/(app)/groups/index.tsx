@@ -241,8 +241,9 @@ export default function GroupsScreen() {
       <AppHeader subtitle="Guruhlar" />
 
       <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
+        style={styles.container}
+        contentContainerStyle={styles.content}
+        keyboardShouldPersistTaps="handled"
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
         showsVerticalScrollIndicator={false}
       >
@@ -451,6 +452,9 @@ export default function GroupsScreen() {
         animationOut="slideOutDown"
         backdropTransitionOutTiming={0}
         style={styles.modal}
+        hideModalContentWhileAnimating={true}
+        useNativeDriver={true}
+        avoidKeyboard={true}
       >
         <View style={styles.modalContent}>
           <View style={styles.modalHandle} />
@@ -495,6 +499,9 @@ export default function GroupsScreen() {
         animationOut="slideOutDown"
         backdropTransitionOutTiming={0}
         style={styles.modal}
+        hideModalContentWhileAnimating={true}
+        useNativeDriver={true}
+        avoidKeyboard={true}
       >
         <View style={styles.modalContent}>
           <View style={styles.modalHandle} />

@@ -18,7 +18,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Mail, Lock, ArrowLeft, CheckCircle } from 'lucide-react-native';
 import Modal from 'react-native-modal';
 
-const Wrapper = Platform.OS === 'ios' ? KeyboardAvoidingView : View;
 
 export default function LoginScreen() {
   const [email, setEmail] = useState('');
@@ -88,10 +87,11 @@ export default function LoginScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <Wrapper
+      <KeyboardAvoidingView
         style={styles.keyboardAvoidingView}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 10 : 0}
+        enabled={Platform.OS === 'ios'}
       >
         <ScrollView
           contentContainerStyle={styles.scrollContent}
@@ -170,7 +170,7 @@ export default function LoginScreen() {
             </View>
           </View>
         </ScrollView>
-      </Wrapper>
+      </KeyboardAvoidingView>
 
       {/* FORGOT PASSWORD MODAL */}
       <Modal
@@ -180,6 +180,8 @@ export default function LoginScreen() {
         animationOut="slideOutDown"
         backdropTransitionOutTiming={0}
         style={styles.modal}
+        hideModalContentWhileAnimating={true}
+        useNativeDriver={true}
       >
         <View style={styles.modalContent}>
           <View style={styles.modalHandle} />

@@ -157,7 +157,7 @@ export default function ResultsScreen() {
       <SafeAreaView style={styles.container} edges={['top']}>
         <AppHeader subtitle="Natijalar" />
 
-        <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+        <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
           {/* Stats Card */}
           <View style={styles.statsCard}>
             <View style={styles.statsCardHeader}>
@@ -237,6 +237,9 @@ export default function ResultsScreen() {
           animationOut="slideOutDown"
           backdropTransitionOutTiming={0}
           style={styles.modal}
+          hideModalContentWhileAnimating={true}
+          useNativeDriver={true}
+          avoidKeyboard={true}
         >
           <View style={styles.modalContent}>
             <View style={styles.modalHandle} />

@@ -222,6 +222,7 @@ export default function ProfileScreen() {
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
       >
         {/* Profile Card */}
         <View style={styles.profileCard}>
@@ -375,6 +376,9 @@ export default function ProfileScreen() {
         animationOut="slideOutDown"
         backdropTransitionOutTiming={0}
         style={styles.modal}
+        hideModalContentWhileAnimating={true}
+        useNativeDriver={true}
+        avoidKeyboard={true}
       >
         <View style={styles.modalContent}>
           <View style={styles.modalHandle} />
@@ -412,6 +416,9 @@ export default function ProfileScreen() {
         animationOut="slideOutDown"
         backdropTransitionOutTiming={0}
         style={styles.modal}
+        hideModalContentWhileAnimating={true}
+        useNativeDriver={true}
+        avoidKeyboard={true}
       >
         <View style={styles.modalContent}>
           <View style={styles.modalHandle} />
@@ -458,6 +465,9 @@ export default function ProfileScreen() {
         animationOut="slideOutDown"
         backdropTransitionOutTiming={0}
         style={styles.modal}
+        hideModalContentWhileAnimating={true}
+        useNativeDriver={true}
+        avoidKeyboard={true}
       >
         <View style={styles.modalContent}>
           <View style={styles.modalHandle} />

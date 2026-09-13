@@ -197,6 +197,9 @@ const TaskModal: React.FC<TaskModalProps> = ({
       animationOut="slideOutDown"
       backdropTransitionOutTiming={0}
       style={styles.modal}
+      hideModalContentWhileAnimating={true}
+      useNativeDriver={true}
+      avoidKeyboard={true}
     >
       <View style={styles.modalContent}>
         <Text style={styles.modalTitle}>

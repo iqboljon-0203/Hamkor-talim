@@ -19,7 +19,6 @@ import { UserRole } from '@/lib/supabase';
 import * as Linking from 'expo-linking';
 import { useToast } from '@/context/ToastContext';
 
-const Wrapper = Platform.OS === 'ios' ? KeyboardAvoidingView : View;
 
 export default function SignupScreen() {
   const [fullName, setFullName] = useState('');
@@ -83,9 +82,11 @@ export default function SignupScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <Wrapper
+      <KeyboardAvoidingView
         style={styles.keyboardAvoidingView}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 10 : 0}
+        enabled={Platform.OS === 'ios'}
       >
         <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
           <ArrowLeft size={24} color={COLORS.gray[700]} />
@@ -227,7 +228,7 @@ export default function SignupScreen() {
             </View>
           </View>
         </ScrollView>
-      </Wrapper>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }

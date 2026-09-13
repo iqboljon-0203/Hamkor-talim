@@ -111,6 +111,7 @@ export default function CalendarScreen() {
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
       >
         {/* Calendar */}
         <View style={styles.calendarCard}>

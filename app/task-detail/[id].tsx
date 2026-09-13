@@ -266,7 +266,7 @@ export default function TaskDetailScreen() {
         }
       />
 
-      <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
+      <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
         {/* Task Info Card */}
         <View style={styles.taskInfoCard}>
           <View style={styles.groupBadge}>
@@ -474,6 +474,9 @@ export default function TaskDetailScreen() {
         animationOut="slideOutDown"
         backdropTransitionOutTiming={0}
         style={styles.modal}
+        hideModalContentWhileAnimating={true}
+        useNativeDriver={true}
+        avoidKeyboard={true}
       >
         <View style={styles.modalContent}>
           <View style={styles.modalHandle} />
