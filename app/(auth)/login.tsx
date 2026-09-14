@@ -18,13 +18,28 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Mail, Lock, ArrowLeft, CheckCircle } from 'lucide-react-native';
 import Modal from 'react-native-modal';
 
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+type FieldErrors = {
+  email?: string;
+  password?: string;
+};
+
+// ─── Component ────────────────────────────────────────────────────────────────
 
 export default function LoginScreen() {
+  // Form state
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
+
+  // UI state
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
+  const [generalError, setGeneralError] = useState('');
   const [loading, setLoading] = useState(false);
 
+  // Forgot-password modal state
   const [isForgotPasswordVisible, setForgotPasswordVisible] = useState(false);
   const [forgotEmail, setForgotEmail] = useState('');
   const [forgotLoading, setForgotLoading] = useState(false);
@@ -32,39 +47,66 @@ export default function LoginScreen() {
   const { signIn, resetPassword } = useAuth();
   const { showToast } = useToast();
 
-  const handleLogin = async () => {
-    if (!email || !password) {
-      setError('Iltimos, email va parolni kiriting');
-      return;
+  // ── Validation ──────────────────────────────────────────────────────────────
+
+  const validate = (): boolean => {
+    const errors: FieldErrors = {};
+
+    if (!email.trim()) {
+      errors.email = 'Email manzilini kiriting';
+    } else if (!EMAIL_REGEX.test(email.trim())) {
+      errors.email = "Email formati noto'g'ri";
     }
 
+    if (!password) {
+      errors.password = 'Parolni kiriting';
+    } else if (password.length < 6) {
+      errors.password = "Parol kamida 6 ta belgidan iborat bo'lishi kerak";
+    }
+
+    setFieldErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
+  // ── Login handler ───────────────────────────────────────────────────────────
+
+  const handleLogin = async () => {
+    if (!validate()) return;
+
     setLoading(true);
-    setError('');
+    setGeneralError('');
 
     try {
-      const { error: signInError } = await signIn(email, password);
+      const { error: signInError } = await signIn(email.trim(), password);
 
       if (signInError) {
-        if (signInError.message.includes('Invalid login credentials')) {
-          setError("Noto'g'ri email yoki parol");
+        if (signInError.message?.includes('Invalid login credentials')) {
+          setGeneralError("Noto'g'ri email yoki parol");
         } else {
-          setError(signInError.message || 'Tizimga kirishda xatolik yuz berdi');
+          setGeneralError(signInError.message || 'Tizimga kirishda xatolik yuz berdi');
         }
       } else {
         router.replace('/(app)');
       }
     } catch (err: any) {
-      setError(err.message || 'Kutilmagan xatolik yuz berdi');
+      setGeneralError(err.message || 'Kutilmagan xatolik yuz berdi');
     } finally {
       setLoading(false);
     }
   };
+
+  // ── Reset-password handler ──────────────────────────────────────────────────
 
   const handleResetPassword = async () => {
     if (!forgotEmail.trim()) {
       showToast('Iltimos, email manzilingizni kiriting', 'error');
       return;
     }
+    if (!EMAIL_REGEX.test(forgotEmail.trim())) {
+      showToast("Email formati noto'g'ri", 'error');
+      return;
+    }
+
     setForgotLoading(true);
     try {
       const { error: resetError } = await resetPassword(forgotEmail.trim());
@@ -85,28 +127,32 @@ export default function LoginScreen() {
     }
   };
 
+  // ── Render ──────────────────────────────────────────────────────────────────
+
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
       <KeyboardAvoidingView
-        style={styles.keyboardAvoidingView}
+        style={styles.flex}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 10 : 0}
-        enabled={Platform.OS === 'ios'}
       >
         <ScrollView
           contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
+          bounces={false}
         >
+          {/* Back button */}
           <TouchableOpacity
             style={styles.backButton}
             onPress={() => router.back()}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           >
             <ArrowLeft size={24} color={COLORS.gray[700]} />
           </TouchableOpacity>
 
           <View style={styles.content}>
-            {/* Logo */}
+            {/* Branding header */}
             <View style={styles.logoSection}>
               <View style={styles.logoCircle}>
                 <CheckCircle size={28} color={COLORS.white} />
@@ -117,31 +163,43 @@ export default function LoginScreen() {
             <Text style={styles.title}>Xush kelibsiz! 👋</Text>
             <Text style={styles.subtitle}>Hisobingizga kiring</Text>
 
-            {error ? (
+            {/* General error banner */}
+            {generalError ? (
               <View style={styles.errorContainer}>
-                <Text style={styles.errorText}>{error}</Text>
+                <Text style={styles.errorText}>{generalError}</Text>
               </View>
             ) : null}
 
+            {/* Email */}
             <Input
               label="Email"
               placeholder="Email manzilingiz"
               value={email}
-              onChangeText={setEmail}
+              onChangeText={(text) => {
+                setEmail(text);
+                if (fieldErrors.email) setFieldErrors((p) => ({ ...p, email: undefined }));
+              }}
               keyboardType="email-address"
               autoCapitalize="none"
               icon={<Mail size={20} color={COLORS.gray[400]} />}
+              error={fieldErrors.email}
             />
 
+            {/* Password */}
             <Input
               label="Parol"
               placeholder="Parolingiz"
               value={password}
-              onChangeText={setPassword}
+              onChangeText={(text) => {
+                setPassword(text);
+                if (fieldErrors.password) setFieldErrors((p) => ({ ...p, password: undefined }));
+              }}
               secureTextEntry
               icon={<Lock size={20} color={COLORS.gray[400]} />}
+              error={fieldErrors.password}
             />
 
+            {/* Forgot password link */}
             <TouchableOpacity
               style={styles.forgotPassword}
               onPress={() => {
@@ -152,16 +210,19 @@ export default function LoginScreen() {
               <Text style={styles.forgotPasswordText}>Parolni unutdingizmi?</Text>
             </TouchableOpacity>
 
+            {/* Submit */}
             <Button
               title="Kirish"
               onPress={handleLogin}
               fullWidth
               loading={loading}
+              disabled={loading}
               size="lg"
               gradient
               style={styles.signInButton}
             />
 
+            {/* Signup link */}
             <View style={styles.signupContainer}>
               <Text style={styles.signupText}>Hisobingiz yo'qmi? </Text>
               <TouchableOpacity onPress={() => router.push('/signup')}>
@@ -172,7 +233,7 @@ export default function LoginScreen() {
         </ScrollView>
       </KeyboardAvoidingView>
 
-      {/* FORGOT PASSWORD MODAL */}
+      {/* ── FORGOT PASSWORD MODAL ───────────────────────────────────────────── */}
       <Modal
         isVisible={isForgotPasswordVisible}
         onBackdropPress={() => setForgotPasswordVisible(false)}
@@ -180,15 +241,15 @@ export default function LoginScreen() {
         animationOut="slideOutDown"
         backdropTransitionOutTiming={0}
         style={styles.modal}
-        hideModalContentWhileAnimating={true}
-        useNativeDriver={true}
+        avoidKeyboard
+        hideModalContentWhileAnimating
+        useNativeDriver
       >
         <View style={styles.modalContent}>
           <View style={styles.modalHandle} />
           <Text style={styles.modalTitle}>Parolni tiklash</Text>
           <Text style={styles.modalSubtitle}>
-            Emailingizni kiriting. Biz sizga yangi parol o'rnatish havolasini
-            yuboramiz.
+            Emailingizni kiriting. Biz sizga yangi parol o'rnatish havolasini yuboramiz.
           </Text>
 
           <Input
@@ -212,6 +273,7 @@ export default function LoginScreen() {
               title="Yuborish"
               onPress={handleResetPassword}
               loading={forgotLoading}
+              disabled={forgotLoading}
               gradient
               style={styles.modalButton}
             />
@@ -222,16 +284,19 @@ export default function LoginScreen() {
   );
 }
 
+// ─── Styles ───────────────────────────────────────────────────────────────────
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: COLORS.background,
   },
-  keyboardAvoidingView: {
+  flex: {
     flex: 1,
   },
   scrollContent: {
     flexGrow: 1,
+    paddingBottom: SPACING.xl,
   },
   backButton: {
     padding: SPACING.md,
@@ -240,9 +305,10 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-    padding: SPACING.xl,
-    justifyContent: 'center',
+    paddingHorizontal: SPACING.xl,
+    paddingTop: SPACING.lg,
   },
+  // ── Brand header ──
   logoSection: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -262,6 +328,7 @@ const styles = StyleSheet.create({
     fontSize: FONT_SIZES.lg,
     color: COLORS.gray[800],
   },
+  // ── Typography ──
   title: {
     fontFamily: FONTS.bold,
     fontSize: FONT_SIZES['3xl'],
@@ -274,6 +341,7 @@ const styles = StyleSheet.create({
     color: COLORS.gray[500],
     marginBottom: SPACING.xl,
   },
+  // ── Error banner ──
   errorContainer: {
     backgroundColor: COLORS.error[50],
     borderRadius: BORDER_RADIUS.md,
@@ -287,10 +355,11 @@ const styles = StyleSheet.create({
     fontSize: FONT_SIZES.sm,
     color: COLORS.error[600],
   },
+  // ── Actions ──
   forgotPassword: {
     alignSelf: 'flex-end',
-    marginBottom: SPACING.xl,
-    marginTop: -SPACING.sm,
+    marginBottom: SPACING.lg,
+    marginTop: -SPACING.xs,
   },
   forgotPasswordText: {
     fontFamily: FONTS.medium,
@@ -303,7 +372,7 @@ const styles = StyleSheet.create({
   signupContainer: {
     flexDirection: 'row',
     justifyContent: 'center',
-    marginTop: SPACING.md,
+    marginTop: SPACING.sm,
   },
   signupText: {
     fontFamily: FONTS.regular,
@@ -315,6 +384,7 @@ const styles = StyleSheet.create({
     fontSize: FONT_SIZES.sm,
     color: COLORS.primary[500],
   },
+  // ── Modal ──
   modal: {
     margin: 0,
     justifyContent: 'flex-end',

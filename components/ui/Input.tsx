@@ -58,16 +58,12 @@ const Input: React.FC<InputProps> = ({
 
   const handleFocus = (e: any) => {
     setIsFocused(true);
-    onFocus && onFocus(e);
+    onFocus?.(e);
   };
 
   const handleBlur = (e: any) => {
     setIsFocused(false);
-    onBlur && onBlur(e);
-  };
-
-  const toggleShowPassword = () => {
-    setShowPassword(!showPassword);
+    onBlur?.(e);
   };
 
   return (
@@ -82,13 +78,18 @@ const Input: React.FC<InputProps> = ({
           disabled && styles.disabledInput,
         ]}
       >
-        {icon && <View style={styles.iconContainer}>{icon}</View>}
+        {/* Leading icon — pointerEvents="none" ensures touches pass through to TextInput */}
+        {icon && (
+          <View style={styles.iconContainer} pointerEvents="none">
+            {icon}
+          </View>
+        )}
+
         <TextInput
           style={[
             styles.input,
-            icon ? styles.inputWithIcon : undefined,
-            secureTextEntry ? styles.inputWithToggle : undefined,
-            multiline ? styles.multilineInput : undefined,
+            icon ? styles.inputWithIcon : null,
+            multiline ? styles.multilineInput : null,
             inputStyle,
           ]}
           placeholder={placeholder}
@@ -105,8 +106,14 @@ const Input: React.FC<InputProps> = ({
           maxLength={maxLength}
           editable={!disabled}
         />
+
+        {/* Password visibility toggle — flex sibling, NOT absolutely positioned */}
         {secureTextEntry && (
-          <TouchableOpacity style={styles.toggleButton} onPress={toggleShowPassword}>
+          <TouchableOpacity
+            style={styles.toggleButton}
+            onPress={() => setShowPassword((prev) => !prev)}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
             {showPassword ? (
               <EyeOff size={20} color={COLORS.gray[400]} />
             ) : (
@@ -119,6 +126,8 @@ const Input: React.FC<InputProps> = ({
     </View>
   );
 };
+
+const ICON_AREA_WIDTH = 44;
 
 const styles = StyleSheet.create({
   container: {
@@ -137,6 +146,7 @@ const styles = StyleSheet.create({
     borderColor: COLORS.gray[200],
     borderRadius: BORDER_RADIUS.lg,
     backgroundColor: COLORS.gray[50],
+    minHeight: 48,
   },
   input: {
     flex: 1,
@@ -145,24 +155,31 @@ const styles = StyleSheet.create({
     color: COLORS.gray[800],
     paddingVertical: SPACING.sm + 2,
     paddingHorizontal: SPACING.md,
+    // Explicit height: undefined ensures TextInput is never collapsed to 0
   },
   inputWithIcon: {
-    paddingLeft: 0,
-  },
-  inputWithToggle: {
-    paddingRight: SPACING.xl,
+    // Text starts after the icon area (icon container width + gap)
+    paddingLeft: SPACING.sm,
   },
   iconContainer: {
-    paddingLeft: SPACING.md,
+    width: ICON_AREA_WIDTH,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  toggleButton: {
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.sm,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   focusedInput: {
     borderColor: COLORS.primary[500],
     backgroundColor: COLORS.white,
     shadowColor: COLORS.primary[500],
     shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.12,
-    shadowRadius: 8,
-    elevation: 2,
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+    elevation: 1,
   },
   errorInput: {
     borderColor: COLORS.error[500],
@@ -175,19 +192,16 @@ const styles = StyleSheet.create({
   },
   multilineContainer: {
     minHeight: 100,
+    alignItems: 'flex-start',
   },
   multilineInput: {
     textAlignVertical: 'top',
     minHeight: 100,
   },
-  toggleButton: {
-    position: 'absolute',
-    right: SPACING.md,
-    padding: SPACING.xs,
-  },
   disabledInput: {
     backgroundColor: COLORS.gray[100],
     borderColor: COLORS.gray[200],
+    opacity: 0.7,
   },
 });
 
