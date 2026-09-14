@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useCallback } from 'react';
 import {
   View,
   Text,
@@ -7,54 +7,53 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  TextInput,
 } from 'react-native';
 import { COLORS, FONTS, FONT_SIZES, SPACING, BORDER_RADIUS } from '@/constants/Theme';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
+import ForgotPasswordModal from '@/components/auth/ForgotPasswordModal';
 import { useAuth } from '@/hooks/useAuth';
-import { useToast } from '@/context/ToastContext';
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Mail, Lock, ArrowLeft, CheckCircle } from 'lucide-react-native';
-import Modal from 'react-native-modal';
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-type FieldErrors = {
+interface FieldErrors {
   email?: string;
   password?: string;
-};
-
-// ─── Component ────────────────────────────────────────────────────────────────
+}
 
 export default function LoginScreen() {
-  // Form state
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-
-  // UI state
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [generalError, setGeneralError] = useState('');
   const [loading, setLoading] = useState(false);
-
-  // Forgot-password modal state
   const [isForgotPasswordVisible, setForgotPasswordVisible] = useState(false);
-  const [forgotEmail, setForgotEmail] = useState('');
-  const [forgotLoading, setForgotLoading] = useState(false);
 
-  const { signIn, resetPassword } = useAuth();
-  const { showToast } = useToast();
+  const passwordInputRef = useRef<TextInput>(null);
 
-  // ── Validation ──────────────────────────────────────────────────────────────
+  const { signIn } = useAuth();
+
+  const handleEmailChange = useCallback((text: string) => {
+    setEmail(text);
+    setFieldErrors((prev) => (prev.email ? { ...prev, email: undefined } : prev));
+  }, []);
+
+  const handlePasswordChange = useCallback((text: string) => {
+    setPassword(text);
+    setFieldErrors((prev) => (prev.password ? { ...prev, password: undefined } : prev));
+  }, []);
 
   const validate = (): boolean => {
     const errors: FieldErrors = {};
 
-    if (!email.trim()) {
+    const trimmedEmail = email.trim();
+    if (!trimmedEmail) {
       errors.email = 'Email manzilini kiriting';
-    } else if (!EMAIL_REGEX.test(email.trim())) {
+    } else if (!EMAIL_REGEX.test(trimmedEmail)) {
       errors.email = "Email formati noto'g'ri";
     }
 
@@ -67,8 +66,6 @@ export default function LoginScreen() {
     setFieldErrors(errors);
     return Object.keys(errors).length === 0;
   };
-
-  // ── Login handler ───────────────────────────────────────────────────────────
 
   const handleLogin = async () => {
     if (!validate()) return;
@@ -95,46 +92,12 @@ export default function LoginScreen() {
     }
   };
 
-  // ── Reset-password handler ──────────────────────────────────────────────────
-
-  const handleResetPassword = async () => {
-    if (!forgotEmail.trim()) {
-      showToast('Iltimos, email manzilingizni kiriting', 'error');
-      return;
-    }
-    if (!EMAIL_REGEX.test(forgotEmail.trim())) {
-      showToast("Email formati noto'g'ri", 'error');
-      return;
-    }
-
-    setForgotLoading(true);
-    try {
-      const { error: resetError } = await resetPassword(forgotEmail.trim());
-      if (resetError) {
-        showToast(resetError.message || 'Xatolik yuz berdi', 'error');
-      } else {
-        showToast(
-          'Parolni tiklash havolasi emailingizga yuborildi. Pochtangizni tekshiring.',
-          'success',
-        );
-        setForgotPasswordVisible(false);
-        setForgotEmail('');
-      }
-    } catch (e: any) {
-      showToast(e.message || 'Xatolik yuz berdi', 'error');
-    } finally {
-      setForgotLoading(false);
-    }
-  };
-
-  // ── Render ──────────────────────────────────────────────────────────────────
-
   return (
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+      {/* On Android, windowSoftInputMode already resizes properly. Setting behavior='height' breaks IME. */}
       <KeyboardAvoidingView
         style={styles.flex}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 10 : 0}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <ScrollView
           contentContainerStyle={styles.scrollContent}
@@ -170,31 +133,31 @@ export default function LoginScreen() {
               </View>
             ) : null}
 
-            {/* Email */}
+            {/* Email input */}
             <Input
               label="Email"
               placeholder="Email manzilingiz"
               value={email}
-              onChangeText={(text) => {
-                setEmail(text);
-                if (fieldErrors.email) setFieldErrors((p) => ({ ...p, email: undefined }));
-              }}
+              onChangeText={handleEmailChange}
               keyboardType="email-address"
               autoCapitalize="none"
+              autoCorrect={false}
+              returnKeyType="next"
+              onSubmitEditing={() => passwordInputRef.current?.focus()}
               icon={<Mail size={20} color={COLORS.gray[400]} />}
               error={fieldErrors.email}
             />
 
-            {/* Password */}
+            {/* Password input */}
             <Input
+              ref={passwordInputRef}
               label="Parol"
               placeholder="Parolingiz"
               value={password}
-              onChangeText={(text) => {
-                setPassword(text);
-                if (fieldErrors.password) setFieldErrors((p) => ({ ...p, password: undefined }));
-              }}
+              onChangeText={handlePasswordChange}
               secureTextEntry
+              returnKeyType="done"
+              onSubmitEditing={handleLogin}
               icon={<Lock size={20} color={COLORS.gray[400]} />}
               error={fieldErrors.password}
             />
@@ -202,15 +165,13 @@ export default function LoginScreen() {
             {/* Forgot password link */}
             <TouchableOpacity
               style={styles.forgotPassword}
-              onPress={() => {
-                setForgotEmail(email);
-                setForgotPasswordVisible(true);
-              }}
+              onPress={() => setForgotPasswordVisible(true)}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             >
               <Text style={styles.forgotPasswordText}>Parolni unutdingizmi?</Text>
             </TouchableOpacity>
 
-            {/* Submit */}
+            {/* Submit button */}
             <Button
               title="Kirish"
               onPress={handleLogin}
@@ -233,58 +194,15 @@ export default function LoginScreen() {
         </ScrollView>
       </KeyboardAvoidingView>
 
-      {/* ── FORGOT PASSWORD MODAL ───────────────────────────────────────────── */}
-      <Modal
-        isVisible={isForgotPasswordVisible}
-        onBackdropPress={() => setForgotPasswordVisible(false)}
-        animationIn="slideInUp"
-        animationOut="slideOutDown"
-        backdropTransitionOutTiming={0}
-        style={styles.modal}
-        avoidKeyboard
-        hideModalContentWhileAnimating
-        useNativeDriver
-      >
-        <View style={styles.modalContent}>
-          <View style={styles.modalHandle} />
-          <Text style={styles.modalTitle}>Parolni tiklash</Text>
-          <Text style={styles.modalSubtitle}>
-            Emailingizni kiriting. Biz sizga yangi parol o'rnatish havolasini yuboramiz.
-          </Text>
-
-          <Input
-            label="Email"
-            placeholder="Email manzilingizni kiriting"
-            value={forgotEmail}
-            onChangeText={setForgotEmail}
-            keyboardType="email-address"
-            autoCapitalize="none"
-            icon={<Mail size={20} color={COLORS.gray[400]} />}
-          />
-
-          <View style={styles.modalButtons}>
-            <Button
-              title="Bekor qilish"
-              onPress={() => setForgotPasswordVisible(false)}
-              type="outline"
-              style={styles.modalButton}
-            />
-            <Button
-              title="Yuborish"
-              onPress={handleResetPassword}
-              loading={forgotLoading}
-              disabled={forgotLoading}
-              gradient
-              style={styles.modalButton}
-            />
-          </View>
-        </View>
-      </Modal>
+      {/* Fully interactive, native ForgotPassword modal */}
+      <ForgotPasswordModal
+        visible={isForgotPasswordVisible}
+        initialEmail={email}
+        onClose={() => setForgotPasswordVisible(false)}
+      />
     </SafeAreaView>
   );
 }
-
-// ─── Styles ───────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
   container: {
@@ -308,7 +226,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.xl,
     paddingTop: SPACING.lg,
   },
-  // ── Brand header ──
   logoSection: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -328,7 +245,6 @@ const styles = StyleSheet.create({
     fontSize: FONT_SIZES.lg,
     color: COLORS.gray[800],
   },
-  // ── Typography ──
   title: {
     fontFamily: FONTS.bold,
     fontSize: FONT_SIZES['3xl'],
@@ -341,7 +257,6 @@ const styles = StyleSheet.create({
     color: COLORS.gray[500],
     marginBottom: SPACING.xl,
   },
-  // ── Error banner ──
   errorContainer: {
     backgroundColor: COLORS.error[50],
     borderRadius: BORDER_RADIUS.md,
@@ -355,7 +270,6 @@ const styles = StyleSheet.create({
     fontSize: FONT_SIZES.sm,
     color: COLORS.error[600],
   },
-  // ── Actions ──
   forgotPassword: {
     alignSelf: 'flex-end',
     marginBottom: SPACING.lg,
@@ -383,47 +297,5 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.bold,
     fontSize: FONT_SIZES.sm,
     color: COLORS.primary[500],
-  },
-  // ── Modal ──
-  modal: {
-    margin: 0,
-    justifyContent: 'flex-end',
-  },
-  modalContent: {
-    backgroundColor: COLORS.white,
-    borderTopLeftRadius: BORDER_RADIUS['3xl'],
-    borderTopRightRadius: BORDER_RADIUS['3xl'],
-    padding: SPACING.xl,
-    paddingTop: SPACING.md,
-  },
-  modalHandle: {
-    width: 40,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: COLORS.gray[300],
-    alignSelf: 'center',
-    marginBottom: SPACING.lg,
-  },
-  modalTitle: {
-    fontFamily: FONTS.bold,
-    fontSize: FONT_SIZES.xl,
-    color: COLORS.gray[900],
-    marginBottom: SPACING.xs,
-  },
-  modalSubtitle: {
-    fontFamily: FONTS.regular,
-    fontSize: FONT_SIZES.sm,
-    color: COLORS.gray[500],
-    marginBottom: SPACING.lg,
-    lineHeight: 20,
-  },
-  modalButtons: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    marginTop: SPACING.md,
-    gap: SPACING.md,
-  },
-  modalButton: {
-    minWidth: 110,
   },
 });

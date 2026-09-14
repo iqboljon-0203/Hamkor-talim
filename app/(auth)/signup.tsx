@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -7,10 +7,12 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  TextInput,
 } from 'react-native';
 import { COLORS, FONTS, FONT_SIZES, SPACING, BORDER_RADIUS } from '@/constants/Theme';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
+import { RoleCard } from '@/components/auth/RoleCard';
 import { useAuth } from '@/hooks/useAuth';
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -19,61 +21,81 @@ import { UserRole } from '@/lib/supabase';
 import * as Linking from 'expo-linking';
 import { useToast } from '@/context/ToastContext';
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-type FieldErrors = {
+interface FieldErrors {
   fullName?: string;
   email?: string;
   password?: string;
   confirmPassword?: string;
-};
+}
 
-// ─── Component ────────────────────────────────────────────────────────────────
+function calculatePasswordStrength(pass: string) {
+  if (pass.length === 0) return { level: 0, label: '', color: COLORS.gray[300] };
+  if (pass.length < 6) return { level: 1, label: 'Zaif', color: COLORS.error[500] };
+  if (pass.length < 8) return { level: 2, label: "O'rtacha", color: COLORS.warning[500] };
+  const hasUpper = /[A-Z]/.test(pass);
+  const hasNumber = /[0-9]/.test(pass);
+  if (hasUpper && hasNumber) return { level: 3, label: 'Kuchli', color: COLORS.success[500] };
+  return { level: 2, label: "O'rtacha", color: COLORS.warning[500] };
+}
 
 export default function SignupScreen() {
-  // Form state
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [role, setRole] = useState<UserRole>('student');
 
-  // UI state
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [generalError, setGeneralError] = useState('');
   const [loading, setLoading] = useState(false);
 
+  const emailRef = useRef<TextInput>(null);
+  const passwordRef = useRef<TextInput>(null);
+  const confirmPasswordRef = useRef<TextInput>(null);
+
   const { signUp } = useAuth();
   const { showToast } = useToast();
 
-  // ── Password strength ───────────────────────────────────────────────────────
+  const passwordStrength = useMemo(() => calculatePasswordStrength(password), [password]);
 
-  const getPasswordStrength = () => {
-    if (password.length === 0) return { level: 0, label: '', color: COLORS.gray[300] };
-    if (password.length < 6) return { level: 1, label: 'Zaif', color: COLORS.error[500] };
-    if (password.length < 8) return { level: 2, label: "O'rtacha", color: COLORS.warning[500] };
-    const hasUpper = /[A-Z]/.test(password);
-    const hasNumber = /[0-9]/.test(password);
-    if (hasUpper && hasNumber) return { level: 3, label: 'Kuchli', color: COLORS.success[500] };
-    return { level: 2, label: "O'rtacha", color: COLORS.warning[500] };
-  };
+  const handleFullNameChange = useCallback((text: string) => {
+    setFullName(text);
+    setFieldErrors((prev) => (prev.fullName ? { ...prev, fullName: undefined } : prev));
+  }, []);
 
-  const passwordStrength = getPasswordStrength();
+  const handleEmailChange = useCallback((text: string) => {
+    setEmail(text);
+    setFieldErrors((prev) => (prev.email ? { ...prev, email: undefined } : prev));
+  }, []);
 
-  // ── Validation ──────────────────────────────────────────────────────────────
+  const handlePasswordChange = useCallback((text: string) => {
+    setPassword(text);
+    setFieldErrors((prev) => (prev.password ? { ...prev, password: undefined } : prev));
+  }, []);
+
+  const handleConfirmPasswordChange = useCallback((text: string) => {
+    setConfirmPassword(text);
+    setFieldErrors((prev) => (prev.confirmPassword ? { ...prev, confirmPassword: undefined } : prev));
+  }, []);
+
+  const handleRoleSelect = useCallback((selectedRole: UserRole) => {
+    setRole(selectedRole);
+  }, []);
 
   const validate = (): boolean => {
     const errors: FieldErrors = {};
 
-    if (!fullName.trim()) {
+    const trimmedName = fullName.trim();
+    if (!trimmedName) {
       errors.fullName = "To'liq ismingizni kiriting";
     }
 
-    if (!email.trim()) {
+    const trimmedEmail = email.trim();
+    if (!trimmedEmail) {
       errors.email = 'Email manzilini kiriting';
-    } else if (!EMAIL_REGEX.test(email.trim())) {
+    } else if (!EMAIL_REGEX.test(trimmedEmail)) {
       errors.email = "Email formati noto'g'ri";
     }
 
@@ -92,16 +114,6 @@ export default function SignupScreen() {
     setFieldErrors(errors);
     return Object.keys(errors).length === 0;
   };
-
-  // ── Clear single field error on change ──────────────────────────────────────
-
-  const clearFieldError = (field: keyof FieldErrors) => {
-    if (fieldErrors[field]) {
-      setFieldErrors((prev) => ({ ...prev, [field]: undefined }));
-    }
-  };
-
-  // ── Signup handler ──────────────────────────────────────────────────────────
 
   const handleSignup = async () => {
     if (!validate()) return;
@@ -123,7 +135,7 @@ export default function SignupScreen() {
         setGeneralError(signUpError.message || 'Hisob yaratishda xatolik yuz berdi');
       } else {
         showToast(
-          "Tasdiqlash havolasi email manzilingizga yuborildi. Iltimos, pochta qutingizni tekshiring.",
+          'Tasdiqlash havolasi email manzilingizga yuborildi. Iltimos, pochta qutingizni tekshiring.',
           'success',
         );
         router.push('/login');
@@ -135,30 +147,28 @@ export default function SignupScreen() {
     }
   };
 
-  // ── Render ──────────────────────────────────────────────────────────────────
-
   return (
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+      {/* On Android, behavior='height' causes window resize loops and drops keyboard input */}
       <KeyboardAvoidingView
         style={styles.flex}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 10 : 0}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
-        {/* Back button stays fixed above scroll */}
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => router.back()}
-          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-        >
-          <ArrowLeft size={24} color={COLORS.gray[700]} />
-        </TouchableOpacity>
-
         <ScrollView
           contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
           bounces={false}
         >
+          {/* Back button */}
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => router.back()}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
+            <ArrowLeft size={24} color={COLORS.gray[700]} />
+          </TouchableOpacity>
+
           <View style={styles.content}>
             {/* Branding header */}
             <View style={styles.logoSection}>
@@ -178,72 +188,77 @@ export default function SignupScreen() {
               </View>
             ) : null}
 
-            {/* ── Role Selection ───────────────────────────────────────────── */}
+            {/* ── Role Selection (External Memoized Component) ───────────── */}
             <Text style={styles.roleLabel}>Rolingiz:</Text>
             <View style={styles.roleContainer}>
-              <TouchableOpacity
-                style={[styles.roleCard, role === 'student' && styles.roleCardActive]}
-                onPress={() => setRole('student')}
-                activeOpacity={0.7}
-              >
-                <View style={[styles.roleIconWrap, role === 'student' && styles.roleIconWrapActive]}>
-                  <GraduationCap size={22} color={role === 'student' ? COLORS.white : COLORS.primary[500]} />
-                </View>
-                <Text style={[styles.roleCardTitle, role === 'student' && styles.roleCardTitleActive]}>
-                  Talaba
-                </Text>
-                <Text style={[styles.roleCardDesc, role === 'student' && styles.roleCardDescActive]}>
-                  Vazifalarni bajaring
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[styles.roleCard, role === 'teacher' && styles.roleCardActive]}
-                onPress={() => setRole('teacher')}
-                activeOpacity={0.7}
-              >
-                <View style={[styles.roleIconWrap, role === 'teacher' && styles.roleIconWrapActive]}>
-                  <BookOpen size={22} color={role === 'teacher' ? COLORS.white : COLORS.primary[500]} />
-                </View>
-                <Text style={[styles.roleCardTitle, role === 'teacher' && styles.roleCardTitleActive]}>
-                  O'qituvchi
-                </Text>
-                <Text style={[styles.roleCardDesc, role === 'teacher' && styles.roleCardDescActive]}>
-                  Guruh boshqaring
-                </Text>
-              </TouchableOpacity>
+              <RoleCard
+                role="student"
+                selectedRole={role}
+                onSelect={handleRoleSelect}
+                title="Talaba"
+                description="Vazifalarni bajaring"
+                icon={
+                  <GraduationCap
+                    size={22}
+                    color={role === 'student' ? COLORS.white : COLORS.primary[500]}
+                  />
+                }
+              />
+              <RoleCard
+                role="teacher"
+                selectedRole={role}
+                onSelect={handleRoleSelect}
+                title="O'qituvchi"
+                description="Guruh boshqaring"
+                icon={
+                  <BookOpen
+                    size={22}
+                    color={role === 'teacher' ? COLORS.white : COLORS.primary[500]}
+                  />
+                }
+              />
             </View>
 
-            {/* ── Form fields ──────────────────────────────────────────────── */}
+            {/* ── Form fields ────────────────────────────────────────────── */}
             <Input
               label="To'liq ismingiz"
               placeholder="Ism va familiyangiz"
               value={fullName}
-              onChangeText={(t) => { setFullName(t); clearFieldError('fullName'); }}
+              onChangeText={handleFullNameChange}
               icon={<User size={20} color={COLORS.gray[400]} />}
               error={fieldErrors.fullName}
               autoCapitalize="words"
+              autoCorrect={false}
+              returnKeyType="next"
+              onSubmitEditing={() => emailRef.current?.focus()}
             />
 
             <Input
+              ref={emailRef}
               label="Email"
               placeholder="Email manzilingiz"
               value={email}
-              onChangeText={(t) => { setEmail(t); clearFieldError('email'); }}
+              onChangeText={handleEmailChange}
               keyboardType="email-address"
               autoCapitalize="none"
+              autoCorrect={false}
               icon={<Mail size={20} color={COLORS.gray[400]} />}
               error={fieldErrors.email}
+              returnKeyType="next"
+              onSubmitEditing={() => passwordRef.current?.focus()}
             />
 
             <Input
+              ref={passwordRef}
               label="Parol"
               placeholder="Parol yarating"
               value={password}
-              onChangeText={(t) => { setPassword(t); clearFieldError('password'); }}
+              onChangeText={handlePasswordChange}
               secureTextEntry
               icon={<Lock size={20} color={COLORS.gray[400]} />}
               error={fieldErrors.password}
+              returnKeyType="next"
+              onSubmitEditing={() => confirmPasswordRef.current?.focus()}
             />
 
             {/* Password strength indicator */}
@@ -272,16 +287,19 @@ export default function SignupScreen() {
             )}
 
             <Input
+              ref={confirmPasswordRef}
               label="Parolni tasdiqlang"
               placeholder="Parolni qayta kiriting"
               value={confirmPassword}
-              onChangeText={(t) => { setConfirmPassword(t); clearFieldError('confirmPassword'); }}
+              onChangeText={handleConfirmPasswordChange}
               secureTextEntry
               icon={<Lock size={20} color={COLORS.gray[400]} />}
               error={fieldErrors.confirmPassword}
+              returnKeyType="done"
+              onSubmitEditing={handleSignup}
             />
 
-            {/* ── Submit ───────────────────────────────────────────────────── */}
+            {/* ── Submit button ──────────────────────────────────────────── */}
             <Button
               title="Hisob yaratish"
               onPress={handleSignup}
@@ -307,8 +325,6 @@ export default function SignupScreen() {
   );
 }
 
-// ─── Styles ───────────────────────────────────────────────────────────────────
-
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -331,7 +347,6 @@ const styles = StyleSheet.create({
     paddingTop: SPACING.xs,
     paddingBottom: SPACING.lg,
   },
-  // ── Brand header ──
   logoSection: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -351,7 +366,6 @@ const styles = StyleSheet.create({
     fontSize: FONT_SIZES.lg,
     color: COLORS.gray[800],
   },
-  // ── Typography ──
   title: {
     fontFamily: FONTS.bold,
     fontSize: FONT_SIZES['3xl'],
@@ -364,7 +378,6 @@ const styles = StyleSheet.create({
     color: COLORS.gray[500],
     marginBottom: SPACING.md,
   },
-  // ── Error banner ──
   errorContainer: {
     backgroundColor: COLORS.error[50],
     borderRadius: BORDER_RADIUS.md,
@@ -378,84 +391,38 @@ const styles = StyleSheet.create({
     fontSize: FONT_SIZES.sm,
     color: COLORS.error[600],
   },
-  // ── Role selection ──
   roleLabel: {
     fontFamily: FONTS.medium,
     fontSize: FONT_SIZES.sm,
     color: COLORS.gray[700],
-    marginBottom: SPACING.sm,
+    marginBottom: SPACING.xs,
   },
   roleContainer: {
     flexDirection: 'row',
     gap: SPACING.sm,
     marginBottom: SPACING.md,
   },
-  roleCard: {
-    flex: 1,
-    paddingVertical: SPACING.sm + 2,
-    paddingHorizontal: SPACING.sm,
-    borderRadius: BORDER_RADIUS.xl,
-    borderWidth: 2,
-    borderColor: COLORS.gray[200],
-    backgroundColor: COLORS.white,
-    alignItems: 'center',
-  },
-  roleCardActive: {
-    borderColor: COLORS.primary[500],
-    backgroundColor: COLORS.primary[50],
-  },
-  roleIconWrap: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: COLORS.primary[50],
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: SPACING.xs,
-  },
-  roleIconWrapActive: {
-    backgroundColor: COLORS.primary[500],
-  },
-  roleCardTitle: {
-    fontFamily: FONTS.bold,
-    fontSize: FONT_SIZES.sm,
-    color: COLORS.gray[700],
-    marginBottom: 1,
-  },
-  roleCardTitleActive: {
-    color: COLORS.primary[700],
-  },
-  roleCardDesc: {
-    fontFamily: FONTS.regular,
-    fontSize: FONT_SIZES.xs,
-    color: COLORS.gray[400],
-  },
-  roleCardDescActive: {
-    color: COLORS.primary[400],
-  },
-  // ── Password strength ──
   strengthContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: -SPACING.sm,
     marginBottom: SPACING.md,
-    gap: SPACING.sm,
+    marginTop: -SPACING.xs,
   },
   strengthBar: {
     flex: 1,
     flexDirection: 'row',
+    height: 4,
     gap: 4,
+    marginRight: SPACING.sm,
   },
   strengthSegment: {
     flex: 1,
-    height: 4,
     borderRadius: 2,
   },
   strengthLabel: {
     fontFamily: FONTS.medium,
     fontSize: FONT_SIZES.xs,
   },
-  // ── Actions ──
   signupButton: {
     marginTop: SPACING.sm,
   },
