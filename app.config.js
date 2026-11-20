@@ -21,6 +21,10 @@ module.exports = {
     bundler: 'metro',
     output: 'single',
     favicon: './assets/images/favicon.png',
+    name: "Hamkor Ta'lim",
+    shortName: 'Hamkor',
+    themeColor: '#3b82f6',
+    backgroundColor: '#ffffff',
   },
   plugins: ['expo-router', 'expo-font', 'expo-web-browser'],
   experiments: {

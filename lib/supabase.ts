@@ -4,17 +4,17 @@ import 'react-native-url-polyfill/auto';
 import Constants from 'expo-constants';
 import * as FileSystem from 'expo-file-system/legacy';
 import { Buffer } from 'buffer';
+import { Platform } from 'react-native';
 
-// Get environment variables
 // Get environment variables
 const SUPABASE_URL =
   process.env.EXPO_PUBLIC_SUPABASE_URL ||
   Constants.expoConfig?.extra?.supabaseUrl ||
-  'YOUR_SUPABASE_URL';
+  'https://skmoaeimhufhetmntiie.supabase.co';
 const SUPABASE_ANON_KEY =
   process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ||
   Constants.expoConfig?.extra?.supabaseAnonKey ||
-  'YOUR_SUPABASE_ANON_KEY';
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNrbW9hZWltaHVmaGV0bW50aWllIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjMwMjY4NjIsImV4cCI6MjA3ODYwMjg2Mn0.TkUAf9S2may5WIjXhCWWsKHwlAKmhEfGp8_PNLJfHzo';
 
 // Create a single supabase client for interacting with your database
 export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
@@ -22,7 +22,7 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
     storage: AsyncStorage,
     autoRefreshToken: true,
     persistSession: true,
-    detectSessionInUrl: false,
+    detectSessionInUrl: Platform.OS === 'web',
   },
 });
 
@@ -97,8 +97,40 @@ export const uploadFile = async (
   upsert = true,
 ) => {
   try {
-    console.log('[uploadFile] Started', { bucket, filePath, fileType });
+    console.log('[uploadFile] Started', { bucket, filePath, fileType, platform: Platform.OS });
 
+    // Web platform handling
+    if (Platform.OS === 'web') {
+      const response = await fetch(fileUri);
+      const blob = await response.blob();
+
+      if (blob.size && blob.size > 15 * 1024 * 1024) {
+        throw new Error("Fayl hajmi juda katta (maksimal 15 MB yuklash mumkin).");
+      }
+
+      console.log('[uploadFile] Uploading to Supabase (web)', {
+        size: blob.size,
+        contentType: fileType || blob.type,
+      });
+
+      const { data, error } = await supabase.storage
+        .from(bucket)
+        .upload(filePath, blob, {
+          contentType: fileType || blob.type || 'application/octet-stream',
+          upsert,
+          cacheControl: '3600',
+        });
+
+      if (error) {
+        console.error('[uploadFile] Supabase storage upload error:', error);
+        throw error;
+      }
+
+      console.log('[uploadFile] Upload success (web):', data);
+      return data;
+    }
+
+    // Native platform handling
     const fileInfo = await FileSystem.getInfoAsync(fileUri);
 
     if (!fileInfo.exists) {

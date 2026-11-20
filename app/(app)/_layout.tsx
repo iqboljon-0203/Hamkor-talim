@@ -2,12 +2,12 @@ import { Tabs } from 'expo-router';
 import { useAuth } from '@/hooks/useAuth';
 import { LayoutGrid, Users, Calendar, BarChart3, User } from 'lucide-react-native';
 import Theme from '@/constants/Theme';
-import { ActivityIndicator, View, Platform } from 'react-native';
+import { ActivityIndicator, View, StyleSheet, useWindowDimensions, Platform } from 'react-native';
 import { useEffect, useState } from 'react';
 import { Redirect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-const { COLORS, FONTS, FONT_SIZES, SHADOWS } = Theme;
+const { COLORS, FONTS, SHADOWS } = Theme;
 
 interface TabIconProps {
   color: string;
@@ -19,6 +19,8 @@ export default function AppLayout() {
   const { user, loading, isTeacher } = useAuth();
   const [shouldRedirect, setShouldRedirect] = useState(false);
   const insets = useSafeAreaInsets();
+  const { width } = useWindowDimensions();
+  const isDesktop = width >= 860;
 
   useEffect(() => {
     if (!loading && !user) {
@@ -28,7 +30,14 @@ export default function AppLayout() {
 
   if (loading) {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: COLORS.background }}>
+      <View
+        style={{
+          flex: 1,
+          justifyContent: 'center',
+          alignItems: 'center',
+          backgroundColor: COLORS.background,
+        }}
+      >
         <ActivityIndicator size="large" color={COLORS.primary[500]} />
       </View>
     );
@@ -77,40 +86,107 @@ export default function AppLayout() {
   ];
 
   return (
-    <Tabs
-      screenOptions={{
-        tabBarActiveTintColor: COLORS.primary[500],
-        tabBarInactiveTintColor: COLORS.gray[400],
-        tabBarStyle: {
-          backgroundColor: COLORS.white,
-          borderTopWidth: 0,
-          height: 64 + insets.bottom,
-          paddingBottom: Math.max(insets.bottom, 8),
-          paddingTop: 8,
-          ...SHADOWS.sm,
-          shadowOffset: { width: 0, height: -2 },
-        },
-        tabBarLabelStyle: {
-          fontFamily: FONTS.medium,
-          fontSize: 10,
-          marginTop: 2,
-        },
-        tabBarIconStyle: {
-          marginBottom: -2,
-        },
-        headerShown: false,
-      }}
-    >
-      {tabs.map((tab) => (
-        <Tabs.Screen
-          key={tab.name}
-          name={tab.name}
-          options={{
-            title: tab.label,
-            tabBarIcon: tab.icon,
-          }}
-        />
-      ))}
-    </Tabs>
+    <View style={[styles.outerWrapper, isDesktop && styles.desktopOuterWrapper]}>
+      <Tabs
+        sceneContainerStyle={[
+          styles.sceneContainer,
+          isDesktop && styles.desktopSceneContainer,
+        ]}
+        screenOptions={{
+          tabBarActiveTintColor: COLORS.primary[500],
+          tabBarInactiveTintColor: COLORS.gray[400],
+          tabBarStyle: isDesktop
+            ? {
+                position: 'absolute',
+                bottom: 20,
+                left: '50%',
+                transform: [{ translateX: -330 }],
+                width: 660,
+                height: 64,
+                borderRadius: 32,
+                backgroundColor: '#ffffff',
+                borderWidth: 1,
+                borderColor: '#e2e8f0',
+                paddingBottom: 8,
+                paddingTop: 8,
+                shadowColor: '#0f172a',
+                shadowOffset: { width: 0, height: 10 },
+                shadowOpacity: 0.12,
+                shadowRadius: 24,
+                elevation: 8,
+                zIndex: 1000,
+              }
+            : {
+                backgroundColor: COLORS.white,
+                borderTopWidth: 0,
+                height: 64 + insets.bottom,
+                paddingBottom: Math.max(insets.bottom, 8),
+                paddingTop: 8,
+                ...SHADOWS.sm,
+                shadowOffset: { width: 0, height: -2 },
+              },
+          tabBarLabelStyle: {
+            fontFamily: FONTS.medium,
+            fontSize: isDesktop ? 11 : 10,
+            marginTop: 2,
+            fontWeight: '600',
+          },
+          tabBarIconStyle: {
+            marginBottom: -2,
+          },
+          tabBarItemStyle: isDesktop
+            ? {
+                paddingVertical: 4,
+                // @ts-ignore
+                cursor: 'pointer',
+              }
+            : undefined,
+          headerShown: false,
+        }}
+      >
+        {tabs.map((tab) => (
+          <Tabs.Screen
+            key={tab.name}
+            name={tab.name}
+            options={{
+              title: tab.label,
+              tabBarIcon: tab.icon,
+            }}
+          />
+        ))}
+      </Tabs>
+    </View>
   );
 }
+
+const styles = StyleSheet.create({
+  outerWrapper: {
+    flex: 1,
+    backgroundColor: '#ffffff',
+    width: '100%',
+    height: '100%',
+  },
+  desktopOuterWrapper: {
+    backgroundColor: '#f1f5f9',
+  },
+  sceneContainer: {
+    flex: 1,
+    width: '100%',
+    backgroundColor: COLORS.background,
+  },
+  desktopSceneContainer: {
+    maxWidth: 1200,
+    width: '100%',
+    alignSelf: 'center',
+    backgroundColor: '#ffffff',
+    borderLeftWidth: 1,
+    borderRightWidth: 1,
+    borderColor: '#e2e8f0',
+    minHeight: '100%',
+    shadowColor: '#0f172a',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.04,
+    shadowRadius: 16,
+    elevation: 2,
+  },
+});

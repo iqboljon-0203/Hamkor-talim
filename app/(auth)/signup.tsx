@@ -8,17 +8,17 @@ import {
   Platform,
   ScrollView,
   TextInput,
+  useWindowDimensions,
 } from 'react-native';
-import { COLORS, FONTS, FONT_SIZES, SPACING, BORDER_RADIUS } from '@/constants/Theme';
+import { COLORS, FONTS, FONT_SIZES, SPACING, BORDER_RADIUS, SHADOWS } from '@/constants/Theme';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import { RoleCard } from '@/components/auth/RoleCard';
 import { useAuth } from '@/hooks/useAuth';
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Mail, Lock, ArrowLeft, User, GraduationCap, BookOpen, CheckCircle } from 'lucide-react-native';
+import { Mail, Lock, ArrowLeft, User, GraduationCap, BookOpen } from 'lucide-react-native';
 import { UserRole } from '@/lib/supabase';
-import * as Linking from 'expo-linking';
 import { useToast } from '@/context/ToastContext';
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -41,6 +41,9 @@ function calculatePasswordStrength(pass: string) {
 }
 
 export default function SignupScreen() {
+  const { width } = useWindowDimensions();
+  const isDesktop = width >= 768;
+
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -100,7 +103,7 @@ export default function SignupScreen() {
     }
 
     if (!password) {
-      errors.password = 'Parolni kiriting';
+      errors.password = 'Parol yarating';
     } else if (password.length < 6) {
       errors.password = "Parol kamida 6 ta belgidan iborat bo'lishi kerak";
     }
@@ -108,7 +111,7 @@ export default function SignupScreen() {
     if (!confirmPassword) {
       errors.confirmPassword = 'Parolni tasdiqlang';
     } else if (password !== confirmPassword) {
-      errors.confirmPassword = 'Parollar bir-biriga mos kelmadi';
+      errors.confirmPassword = 'Parollar mos kelmadi';
     }
 
     setFieldErrors(errors);
@@ -122,23 +125,22 @@ export default function SignupScreen() {
     setGeneralError('');
 
     try {
-      const redirectUrl = Linking.createURL('/');
       const { error: signUpError } = await signUp(
         email.trim(),
         password,
-        role,
         fullName.trim(),
-        redirectUrl,
+        role
       );
 
       if (signUpError) {
-        setGeneralError(signUpError.message || 'Hisob yaratishda xatolik yuz berdi');
+        if (signUpError.message?.includes('already registered')) {
+          setGeneralError('Bu email allaqachon ro\'yxatdan o\'tgan');
+        } else {
+          setGeneralError(signUpError.message || 'Ro\'yxatdan o\'tishda xatolik');
+        }
       } else {
-        showToast(
-          'Tasdiqlash havolasi email manzilingizga yuborildi. Iltimos, pochta qutingizni tekshiring.',
-          'success',
-        );
-        router.push('/login');
+        showToast('Muvaffaqiyatli ro\'yxatdan o\'tdingiz!', 'success');
+        router.replace('/(app)');
       }
     } catch (err: any) {
       setGeneralError(err.message || 'Kutilmagan xatolik yuz berdi');
@@ -148,38 +150,48 @@ export default function SignupScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
-      {/* On Android, behavior='height' causes window resize loops and drops keyboard input */}
+    <SafeAreaView
+      style={[styles.container, isDesktop && styles.desktopContainer]}
+      edges={['top', 'bottom']}
+    >
       <KeyboardAvoidingView
         style={styles.flex}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <ScrollView
-          contentContainerStyle={styles.scrollContent}
+          contentContainerStyle={[
+            styles.scrollContent,
+            isDesktop && styles.desktopScrollContent,
+          ]}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
           bounces={false}
         >
-          {/* Back button */}
-          <TouchableOpacity
-            style={styles.backButton}
-            onPress={() => router.back()}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-          >
-            <ArrowLeft size={24} color={COLORS.gray[700]} />
-          </TouchableOpacity>
+          {/* Main Card Container */}
+          <View style={[styles.content, isDesktop && styles.desktopCard]}>
+            {/* Back button */}
+            <TouchableOpacity
+              style={styles.backButton}
+              onPress={() => router.push('/')}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <ArrowLeft size={20} color={COLORS.gray[700]} />
+              <Text style={styles.backButtonText}>Bosh sahifaga qaytish</Text>
+            </TouchableOpacity>
 
-          <View style={styles.content}>
             {/* Branding header */}
             <View style={styles.logoSection}>
               <View style={styles.logoCircle}>
-                <CheckCircle size={22} color={COLORS.white} />
+                <GraduationCap size={22} color={COLORS.white} />
               </View>
-              <Text style={styles.logoName}>Hamkor Ta'lim</Text>
+              <View>
+                <Text style={styles.logoName}>Hamkor Ta'lim</Text>
+                <Text style={styles.logoSubtitle}>ZAMONAVIY TA'LIM TIZIMI</Text>
+              </View>
             </View>
 
-            <Text style={styles.title}>Hisob yaratish 🚀</Text>
-            <Text style={styles.subtitle}>Hamkor Ta'limga qo'shiling</Text>
+            <Text style={styles.title}>Ro'yxatdan o'tish</Text>
+            <Text style={styles.subtitle}>Ta'lim platformasiga qo'shiling</Text>
 
             {/* General error banner */}
             {generalError ? (
@@ -188,14 +200,14 @@ export default function SignupScreen() {
               </View>
             ) : null}
 
-            {/* ── Role Selection (External Memoized Component) ───────────── */}
-            <Text style={styles.roleLabel}>Rolingiz:</Text>
+            {/* Role selector */}
+            <Text style={styles.roleLabel}>Rolingizni tanlang</Text>
             <View style={styles.roleContainer}>
               <RoleCard
                 role="student"
                 selectedRole={role}
                 onSelect={handleRoleSelect}
-                title="Talaba"
+                title="O'quvchi"
                 description="Vazifalarni bajaring"
                 icon={
                   <GraduationCap
@@ -219,7 +231,7 @@ export default function SignupScreen() {
               />
             </View>
 
-            {/* ── Form fields ────────────────────────────────────────────── */}
+            {/* Form fields */}
             <Input
               label="To'liq ismingiz"
               placeholder="Ism va familiyangiz"
@@ -299,7 +311,7 @@ export default function SignupScreen() {
               onSubmitEditing={handleSignup}
             />
 
-            {/* ── Submit button ──────────────────────────────────────────── */}
+            {/* Submit button */}
             <Button
               title="Hisob yaratish"
               onPress={handleSignup}
@@ -330,47 +342,93 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: COLORS.background,
   },
+  desktopContainer: {
+    backgroundColor: '#f1f5f9',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   flex: {
     flex: 1,
+    width: '100%',
   },
   scrollContent: {
     flexGrow: 1,
     paddingBottom: SPACING.xl,
   },
-  backButton: {
-    padding: SPACING.md,
-    marginTop: SPACING.xs,
-    alignSelf: 'flex-start',
+  desktopScrollContent: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 40,
+    minHeight: '100%',
   },
   content: {
     paddingHorizontal: SPACING.xl,
     paddingTop: SPACING.xs,
     paddingBottom: SPACING.lg,
+    width: '100%',
+  },
+  desktopCard: {
+    maxWidth: 520,
+    width: '100%',
+    backgroundColor: '#ffffff',
+    borderRadius: 24,
+    padding: 36,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    shadowColor: '#0f172a',
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.08,
+    shadowRadius: 24,
+    elevation: 4,
+    marginVertical: 20,
+  },
+  backButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: SPACING.sm,
+    alignSelf: 'flex-start',
+    marginBottom: SPACING.sm,
+    ...(Platform.OS === 'web' ? { cursor: 'pointer' } : {}),
+  },
+  backButtonText: {
+    fontFamily: FONTS.medium,
+    fontSize: FONT_SIZES.sm,
+    color: COLORS.gray[600],
   },
   logoSection: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: SPACING.sm,
     marginBottom: SPACING.md,
   },
   logoCircle: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    backgroundColor: COLORS.primary[500],
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: '#f59e0b',
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: SPACING.sm,
   },
   logoName: {
     fontFamily: FONTS.bold,
-    fontSize: FONT_SIZES.lg,
-    color: COLORS.gray[800],
+    fontSize: FONT_SIZES.md,
+    color: COLORS.gray[900],
+    fontWeight: '800',
+    letterSpacing: 0.8,
+  },
+  logoSubtitle: {
+    fontFamily: FONTS.regular,
+    fontSize: 9,
+    color: COLORS.gray[500],
+    letterSpacing: 0.8,
   },
   title: {
     fontFamily: FONTS.bold,
     fontSize: FONT_SIZES['3xl'],
     color: COLORS.gray[900],
     marginBottom: 2,
+    fontWeight: '800',
   },
   subtitle: {
     fontFamily: FONTS.regular,
@@ -392,9 +450,9 @@ const styles = StyleSheet.create({
     color: COLORS.error[600],
   },
   roleLabel: {
-    fontFamily: FONTS.medium,
+    fontFamily: FONTS.bold,
     fontSize: FONT_SIZES.sm,
-    color: COLORS.gray[700],
+    color: COLORS.gray[800],
     marginBottom: SPACING.xs,
   },
   roleContainer: {
@@ -425,6 +483,8 @@ const styles = StyleSheet.create({
   },
   signupButton: {
     marginTop: SPACING.sm,
+    borderRadius: 14,
+    ...(Platform.OS === 'web' ? { cursor: 'pointer' } : {}),
   },
   loginContainer: {
     flexDirection: 'row',
@@ -440,6 +500,7 @@ const styles = StyleSheet.create({
   loginLink: {
     fontFamily: FONTS.bold,
     fontSize: FONT_SIZES.sm,
-    color: COLORS.primary[500],
+    color: COLORS.primary[600],
+    ...(Platform.OS === 'web' ? { cursor: 'pointer' } : {}),
   },
 });

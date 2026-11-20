@@ -1,11 +1,12 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { COLORS, FONTS, FONT_SIZES, SPACING } from '@/constants/Theme';
-import { Bell, CheckCircle } from 'lucide-react-native';
+import { Bell, CheckCircle, Download } from 'lucide-react-native';
 import Avatar from './Avatar';
 import { useAuth } from '@/hooks/useAuth';
 import { router } from 'expo-router';
 import { ArrowLeft } from 'lucide-react-native';
+import { usePWA } from '@/context/PWAContext';
 
 interface AppHeaderProps {
   subtitle?: string;
@@ -15,6 +16,7 @@ interface AppHeaderProps {
 
 const AppHeader: React.FC<AppHeaderProps> = ({ subtitle = 'Asosiy', showBack, rightElement }) => {
   const { user } = useAuth();
+  const { openInstallModal, isInstalled } = usePWA();
 
   return (
     <View style={styles.container}>
@@ -38,6 +40,16 @@ const AppHeader: React.FC<AppHeaderProps> = ({ subtitle = 'Asosiy', showBack, ri
           rightElement
         ) : (
           <>
+            {!isInstalled && (
+              <TouchableOpacity
+                style={styles.pwaHeaderBtn}
+                onPress={openInstallModal}
+                activeOpacity={0.8}
+              >
+                <Download size={15} color={COLORS.primary[600]} />
+                <Text style={styles.pwaHeaderBtnText}>Ilova</Text>
+              </TouchableOpacity>
+            )}
             <TouchableOpacity style={styles.bellButton}>
               <Bell size={22} color={COLORS.gray[700]} />
               <View style={styles.bellDot} />
@@ -100,7 +112,24 @@ const styles = StyleSheet.create({
   right: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: SPACING.md,
+    gap: SPACING.sm,
+  },
+  pwaHeaderBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: COLORS.primary[50],
+    paddingHorizontal: SPACING.sm + 2,
+    paddingVertical: 5,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: COLORS.primary[200],
+  },
+  pwaHeaderBtnText: {
+    fontFamily: FONTS.medium,
+    fontSize: 12,
+    color: COLORS.primary[700],
+    fontWeight: '600',
   },
   bellButton: {
     position: 'relative',

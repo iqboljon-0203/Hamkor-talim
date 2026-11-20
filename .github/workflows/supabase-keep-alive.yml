@@ -11,9 +11,13 @@ jobs:
   ping-supabase:
     runs-on: ubuntu-latest
     steps:
-      - name: Supabase API ga Ping yuborish
+      - name: Ping Vercel Keep-Alive API
         run: |
-          curl -s -o /dev/null -w "%{http_code}" -H "apikey: ${{ secrets.SUPABASE_ANON_KEY }}" \
-               -H "Authorization: Bearer ${{ secrets.SUPABASE_ANON_KEY }}" \
-               "${{ secrets.SUPABASE_URL }}/rest/v1/profiles?select=id&limit=1"
-          echo " Supabase'ga ping yuborildi!"
+          curl -s -i "https://hamkor-talim.vercel.app/api/keep-alive"
+      - name: Ping Supabase REST API directly
+        run: |
+          curl -s -o /dev/null -w "%{http_code}" \
+            -H "apikey: ${{ secrets.SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNrbW9hZWltaHVmaGV0bW50aWllIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjMwMjY4NjIsImV4cCI6MjA3ODYwMjg2Mn0.TkUAf9S2may5WIjXhCWWsKHwlAKmhEfGp8_PNLJfHzo' }}" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNrbW9hZWltaHVmaGV0bW50aWllIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjMwMjY4NjIsImV4cCI6MjA3ODYwMjg2Mn0.TkUAf9S2may5WIjXhCWWsKHwlAKmhEfGp8_PNLJfHzo' }}" \
+            "${{ secrets.SUPABASE_URL || 'https://skmoaeimhufhetmntiie.supabase.co' }}/rest/v1/profiles?select=id&limit=1"
+          echo " Supabase muvaffaqiyatli faol saqlandi!"

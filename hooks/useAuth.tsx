@@ -51,23 +51,34 @@ export function AuthProvider({
       },
     );
 
-    // Get initial session
+    // Get initial session with a safety timeout
+    const sessionTimeout = setTimeout(() => {
+      setLoading(false);
+    }, 2000);
+
     supabase.auth
       .getSession()
       .then(async ({ data: { session: initialSession }, error }) => {
+        clearTimeout(sessionTimeout);
         if (error) {
-           console.error('[Auth] getSession error:', error);
+          console.error('[Auth] getSession error:', error);
         }
         console.log('[Auth] getSession result:', initialSession?.user?.email);
-        
+
         setSession(initialSession);
         if (initialSession?.user) {
           await fetchUserProfile(initialSession.user.id);
         }
         setLoading(false);
+      })
+      .catch((e) => {
+        clearTimeout(sessionTimeout);
+        console.error('[Auth] getSession catch:', e);
+        setLoading(false);
       });
 
     return () => {
+      clearTimeout(sessionTimeout);
       authListener?.subscription.unsubscribe();
     };
   }, []);

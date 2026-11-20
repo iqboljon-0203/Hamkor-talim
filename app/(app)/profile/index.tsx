@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   ScrollView,
   Switch,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Theme from '@/constants/Theme';
@@ -38,9 +39,11 @@ import {
   Users,
   Zap,
   Clock,
+  Download,
 } from 'lucide-react-native';
 import { router } from 'expo-router';
 import Modal from 'react-native-modal';
+import { usePWA } from '@/context/PWAContext';
 
 const { COLORS, FONTS, FONT_SIZES, SPACING, SHADOWS, BORDER_RADIUS } = Theme;
 
@@ -55,6 +58,7 @@ export default function ProfileScreen() {
   } = useAuth();
   const { showToast } = useToast();
   const { groups } = useGroupStore();
+  const { openInstallModal } = usePWA();
   const [loading, setLoading] = useState(false);
   const [imageUri, setImageUri] = useState<string | null>(null);
 
@@ -126,8 +130,10 @@ export default function ProfileScreen() {
       const normalizedMimeType = mimeType || `image/${extension === 'jpg' ? 'jpeg' : extension}`;
       const remoteFileName = `${Date.now()}.${extension}`;
       const remotePath = `${user.id}/${remoteFileName}`;
-      const fileInfo = await FileSystem.getInfoAsync(uri);
-      if (!fileInfo.exists) throw new Error('Tanlangan rasm topilmadi');
+      if (Platform.OS !== 'web') {
+        const fileInfo = await FileSystem.getInfoAsync(uri);
+        if (!fileInfo.exists) throw new Error('Tanlangan rasm topilmadi');
+      }
       await uploadFile('avatars', remotePath, uri, normalizedMimeType, true);
       const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(remotePath);
       const { error: updateError } = await supabase.from('profiles').update({ avatar_url: publicUrl }).eq('id', user.id);
@@ -334,6 +340,13 @@ export default function ProfileScreen() {
         <View style={styles.sectionGroup}>
           <Text style={styles.sectionLabel}>YORDAM VA TIZIM</Text>
           <View style={styles.sectionCard}>
+            {renderSettingRow(
+              <Download size={18} color={COLORS.primary[500]} />,
+              "Mobil ilovani o'rnatish (PWA)",
+              undefined,
+              openInstallModal,
+              <ChevronRight size={16} color={COLORS.gray[400]} />,
+            )}
             {renderSettingRow(
               <HelpCircle size={18} color={COLORS.primary[500]} />,
               "Qo'llab-quvvatlash xizmati",
