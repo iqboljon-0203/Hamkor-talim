@@ -1,37 +1,50 @@
 {
+  "id": "/dashboard?v=20261121",
   "short_name": "Hamkor",
   "name": "Hamkor Ta'lim",
-  "description": "Hamkor Ta'lim - O'quvchilar va o'qituvchilar uchun ta'lim platformasi",
+  "description": "Hamkor Ta'lim — Zamonaviy raqamli ta'lim tizimi va mobil ilovasi",
   "icons": [
     {
-      "src": "/icons/icon-192x192.png",
+      "src": "/icons/hamkor-v3-192.png?v=20261121",
       "type": "image/png",
       "sizes": "192x192",
       "purpose": "any"
     },
     {
-      "src": "/icons/icon-maskable-192x192.png",
+      "src": "/icons/hamkor-v3-maskable-192.png?v=20261121",
       "type": "image/png",
       "sizes": "192x192",
       "purpose": "maskable"
     },
     {
-      "src": "/icons/icon-512x512.png",
+      "src": "/icons/hamkor-v3-512.png?v=20261121",
       "type": "image/png",
       "sizes": "512x512",
       "purpose": "any"
     },
     {
-      "src": "/icons/icon-maskable-512x512.png",
+      "src": "/icons/hamkor-v3-maskable-512.png?v=20261121",
       "type": "image/png",
       "sizes": "512x512",
       "purpose": "maskable"
+    },
+    {
+      "src": "/icons/icon-192x192.png?v=20261121",
+      "type": "image/png",
+      "sizes": "192x192",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-512x512.png?v=20261121",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "any"
     }
   ],
-  "start_url": "/",
+  "start_url": "/dashboard?source=pwa&v=20261121",
   "scope": "/",
-  "background_color": "#ffffff",
-  "theme_color": "#3b82f6",
+  "background_color": "#020617",
+  "theme_color": "#f59e0b",
   "display": "standalone",
   "orientation": "portrait",
   "lang": "uz"

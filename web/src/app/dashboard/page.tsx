@@ -748,17 +748,17 @@ export default function DashboardPage() {
       {/* ===================== DASHBOARD MAIN CONTAINER ===================== */}
       <main className="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
         {/* Top Welcome & Summary Banner */}
-        <div className="relative rounded-3xl p-6 sm:p-8 bg-gradient-to-r from-blue-950/60 via-slate-900 to-amber-950/40 border border-white/10 shadow-2xl mb-8 overflow-hidden">
-          <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+        <div className="relative rounded-2xl sm:rounded-3xl p-4 sm:p-8 bg-gradient-to-r from-blue-950/60 via-slate-900 to-amber-950/40 border border-white/10 shadow-2xl mb-6 sm:mb-8 overflow-hidden">
+          <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4 sm:gap-6">
             <div>
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-400 text-xs font-bold mb-3">
+              <div className="inline-flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-400 text-[11px] sm:text-xs font-bold mb-2 sm:mb-3">
                 <Sparkles className="w-3.5 h-3.5" />
                 <span>{isTeacher ? "Ustoz Boshqaruv Markazi" : "O'quvchi Shaxsiy Kabineti"}</span>
               </div>
-              <h1 className="text-2xl sm:text-3xl font-black text-white">
+              <h1 className="text-xl sm:text-3xl font-black text-white">
                 Xush kelibsiz, {profile?.full_name || 'Foydalanuvchi'}! 👋
               </h1>
-              <p className="text-xs sm:text-sm text-slate-300 mt-1.5 max-w-xl">
+              <p className="text-xs sm:text-sm text-slate-300 mt-1 max-w-xl">
                 {isTeacher
                   ? "Topshiriqlar bering, o'quvchilar yuborgan javoblarni tekshirib 5 ballik tizimda baholang."
                   : "Berilgan topshiriqlarni bajaring, fayl yoki rasm ilova qiling va baholarni kuzatib boring."}
@@ -766,19 +766,19 @@ export default function DashboardPage() {
             </div>
 
             {/* Quick Actions */}
-            <div className="flex flex-wrap items-center gap-3">
+            <div className="flex flex-wrap items-center gap-2.5 sm:gap-3">
               {isTeacher ? (
                 <>
                   <button
                     onClick={() => setIsTaskModalOpen(true)}
-                    className="flex items-center gap-2 px-5 py-3 rounded-xl bg-amber-500 hover:bg-amber-400 active:scale-95 text-slate-950 font-bold text-xs tracking-wider transition-all shadow-lg shadow-amber-500/20"
+                    className="flex items-center gap-2 px-4 sm:px-5 py-2.5 sm:py-3 rounded-xl bg-amber-500 hover:bg-amber-400 active:scale-95 text-slate-950 font-bold text-xs tracking-wider transition-all shadow-lg shadow-amber-500/20"
                   >
                     <Plus className="w-4 h-4" />
                     <span>Yangi Topshiriq</span>
                   </button>
                   <button
                     onClick={() => setIsGroupModalOpen(true)}
-                    className="flex items-center gap-2 px-4 py-3 rounded-xl bg-blue-600 hover:bg-blue-500 active:scale-95 text-white font-bold text-xs tracking-wider transition-all shadow-md"
+                    className="flex items-center gap-2 px-3.5 sm:px-4 py-2.5 sm:py-3 rounded-xl bg-blue-600 hover:bg-blue-500 active:scale-95 text-white font-bold text-xs tracking-wider transition-all shadow-md"
                   >
                     <Users className="w-4 h-4" />
                     <span>Guruh Yaratish</span>
@@ -787,7 +787,7 @@ export default function DashboardPage() {
               ) : (
                 <button
                   onClick={() => setIsJoinGroupModalOpen(true)}
-                  className="flex items-center gap-2 px-5 py-3 rounded-xl bg-blue-600 hover:bg-blue-500 active:scale-95 text-white font-bold text-xs tracking-wider transition-all shadow-md"
+                  className="flex items-center gap-2 px-4 sm:px-5 py-2.5 sm:py-3 rounded-xl bg-blue-600 hover:bg-blue-500 active:scale-95 text-white font-bold text-xs tracking-wider transition-all shadow-md"
                 >
                   <Plus className="w-4 h-4" />
                   <span>Guruhga Qo'shilish</span>
@@ -798,37 +798,37 @@ export default function DashboardPage() {
         </div>
 
         {/* 4 Stats Cards */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-          <div className="p-5 rounded-2xl bg-slate-900/80 border border-white/5 shadow-md">
-            <div className="flex items-center justify-between text-slate-400 mb-2">
-              <span className="text-xs font-semibold">Jami Topshiriqlar</span>
-              <BookOpen className="w-4 h-4 text-amber-400" />
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4 mb-6 sm:mb-8">
+          <div className="p-3.5 sm:p-5 rounded-xl sm:rounded-2xl bg-slate-900/80 border border-white/5 shadow-md">
+            <div className="flex items-center justify-between text-slate-400 mb-1.5 sm:mb-2">
+              <span className="text-[11px] sm:text-xs font-semibold">Jami Topshiriqlar</span>
+              <BookOpen className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-400" />
             </div>
-            <div className="text-2xl font-black text-white">{totalTasksCount}</div>
+            <div className="text-xl sm:text-2xl font-black text-white">{totalTasksCount}</div>
           </div>
 
-          <div className="p-5 rounded-2xl bg-slate-900/80 border border-white/5 shadow-md">
-            <div className="flex items-center justify-between text-slate-400 mb-2">
-              <span className="text-xs font-semibold">Faol Muddatlar</span>
-              <Clock className="w-4 h-4 text-blue-400" />
+          <div className="p-3.5 sm:p-5 rounded-xl sm:rounded-2xl bg-slate-900/80 border border-white/5 shadow-md">
+            <div className="flex items-center justify-between text-slate-400 mb-1.5 sm:mb-2">
+              <span className="text-[11px] sm:text-xs font-semibold">Faol Muddatlar</span>
+              <Clock className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-blue-400" />
             </div>
-            <div className="text-2xl font-black text-white">{activeTasksCount}</div>
+            <div className="text-xl sm:text-2xl font-black text-white">{activeTasksCount}</div>
           </div>
 
-          <div className="p-5 rounded-2xl bg-slate-900/80 border border-white/5 shadow-md">
-            <div className="flex items-center justify-between text-slate-400 mb-2">
-              <span className="text-xs font-semibold">Topshirilgan</span>
-              <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+          <div className="p-3.5 sm:p-5 rounded-xl sm:rounded-2xl bg-slate-900/80 border border-white/5 shadow-md">
+            <div className="flex items-center justify-between text-slate-400 mb-1.5 sm:mb-2">
+              <span className="text-[11px] sm:text-xs font-semibold">Topshirilgan</span>
+              <CheckCircle2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-emerald-400" />
             </div>
-            <div className="text-2xl font-black text-white">{completedCount}</div>
+            <div className="text-xl sm:text-2xl font-black text-white">{completedCount}</div>
           </div>
 
-          <div className="p-5 rounded-2xl bg-slate-900/80 border border-white/5 shadow-md">
-            <div className="flex items-center justify-between text-slate-400 mb-2">
-              <span className="text-xs font-semibold">Baholangan Ishlar</span>
-              <Star className="w-4 h-4 text-yellow-400 fill-yellow-400" />
+          <div className="p-3.5 sm:p-5 rounded-xl sm:rounded-2xl bg-slate-900/80 border border-white/5 shadow-md">
+            <div className="flex items-center justify-between text-slate-400 mb-1.5 sm:mb-2">
+              <span className="text-[11px] sm:text-xs font-semibold">Baholangan</span>
+              <Star className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-yellow-400 fill-yellow-400" />
             </div>
-            <div className="text-2xl font-black text-white">{gradedCount}</div>
+            <div className="text-xl sm:text-2xl font-black text-white">{gradedCount}</div>
           </div>
         </div>
 

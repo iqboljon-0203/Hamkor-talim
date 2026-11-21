@@ -1,10 +1,13 @@
-// Service Worker for Hamkor Ta'lim PWA
-const CACHE_NAME = 'hamkor-talim-v1';
+// Service Worker for Hamkor Ta'lim PWA v20261121
+const CACHE_NAME = 'hamkor-talim-v20261121';
 const STATIC_ASSETS = [
   '/',
   '/manifest.json',
-  '/icons/icon-192x192.png',
-  '/icons/icon-512x512.png',
+  '/icons/hamkor-v3-192.png',
+  '/icons/hamkor-v3-512.png',
+  '/icons/hamkor-v3-maskable-192.png',
+  '/icons/hamkor-v3-maskable-512.png',
+  '/icons/apple-touch-icon-v3.png',
   '/apple-touch-icon.png'
 ];
 
@@ -12,7 +15,7 @@ const STATIC_ASSETS = [
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      console.log('[SW] Pre-caching static assets');
+      console.log('[SW] Pre-caching static assets v20261121');
       return cache.addAll(STATIC_ASSETS).catch((err) => {
         console.warn('[SW] Pre-cache failed for some assets:', err);
       });
@@ -20,14 +23,14 @@ self.addEventListener('install', (event) => {
   );
 });
 
-// Activate Event
+// Activate Event - aggressively clean all older caches
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((cacheNames) => {
       return Promise.all(
         cacheNames.map((name) => {
           if (name !== CACHE_NAME) {
-            console.log('[SW] Deleting old cache:', name);
+            console.log('[SW] Deleting obsolete cache:', name);
             return caches.delete(name);
           }
         })
@@ -62,24 +65,28 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // For HTML navigations: Network first, fallback to cached index.html
-  if (request.mode === 'navigate') {
+  // For manifests and icons: Network-first to always ensure fresh logo
+  if (url.pathname.includes('manifest.json') || url.pathname.includes('/icons/')) {
     event.respondWith(
-      fetch(request).catch(async () => {
-        const cache = await caches.open(CACHE_NAME);
-        const cachedResponse = await cache.match('/');
-        return cachedResponse || Response.error();
-      })
+      fetch(request)
+        .then((response) => {
+          if (response && response.status === 200) {
+            const clone = response.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
+          }
+          return response;
+        })
+        .catch(() => caches.match(request))
     );
     return;
   }
 
-  // For static assets: Stale-While-Revalidate
+  // Stale-while-revalidate for static pages and assets
   event.respondWith(
     caches.match(request).then((cachedResponse) => {
       const fetchPromise = fetch(request)
         .then((networkResponse) => {
-          if (networkResponse && networkResponse.status === 200) {
+          if (networkResponse && networkResponse.status === 200 && networkResponse.type === 'basic') {
             const responseToCache = networkResponse.clone();
             caches.open(CACHE_NAME).then((cache) => {
               cache.put(request, responseToCache);
@@ -87,7 +94,9 @@ self.addEventListener('fetch', (event) => {
           }
           return networkResponse;
         })
-        .catch(() => cachedResponse);
+        .catch(() => {
+          return cachedResponse;
+        });
 
       return cachedResponse || fetchPromise;
     })

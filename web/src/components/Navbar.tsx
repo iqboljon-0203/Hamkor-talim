@@ -70,20 +70,20 @@ export default function Navbar() {
 
   return (
     <header className="sticky top-0 z-40 w-full bg-slate-950/90 backdrop-blur-md border-b border-white/10 transition-all">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
+      <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 h-16 sm:h-20 flex items-center justify-between">
         {/* Brand Logo */}
         <button
           onClick={() => scrollTo('hero')}
-          className="flex items-center gap-3 text-left group transition-transform active:scale-95"
+          className="flex items-center gap-2.5 sm:gap-3 text-left group transition-transform active:scale-95"
         >
-          <div className="w-10 h-10 rounded-xl bg-amber-500 flex items-center justify-center text-slate-950 shadow-md group-hover:scale-105 transition-transform">
-            <GraduationCap className="w-6 h-6 text-white" />
+          <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-tr from-amber-500 to-yellow-400 flex items-center justify-center text-slate-950 shadow-md group-hover:scale-105 transition-transform">
+            <GraduationCap className="w-5 h-5 sm:w-6 sm:h-6 text-slate-950" />
           </div>
           <div>
-            <div className="font-extrabold text-base sm:text-lg text-white tracking-wider leading-tight">
+            <div className="font-black text-sm sm:text-base lg:text-lg text-white tracking-wider leading-tight">
               HAMKOR TA'LIM
             </div>
-            <div className="text-[10px] text-white/60 tracking-wider">
+            <div className="text-[9px] sm:text-[10px] text-white/60 tracking-wider">
               ZAMONAVIY TA'LIM TIZIMI
             </div>
           </div>
@@ -166,19 +166,11 @@ export default function Navbar() {
         </nav>
 
         {/* Right CTA */}
-        <div className="flex items-center gap-3">
-          <button
-            onClick={openInstallModal}
-            className="lg:hidden p-2 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-400 hover:bg-amber-500/20 transition-colors"
-            title="Ilovani o'rnatish"
-          >
-            <Smartphone className="w-5 h-5" />
-          </button>
-
+        <div className="flex items-center gap-2 sm:gap-3">
           {user ? (
             <Link
               href="/dashboard"
-              className="px-5 py-2.5 rounded-full bg-amber-500 hover:bg-amber-400 active:scale-95 text-slate-950 font-bold text-xs tracking-wider transition-all shadow-md flex items-center gap-1.5"
+              className="px-3.5 sm:px-5 py-2 sm:py-2.5 rounded-full bg-amber-500 hover:bg-amber-400 active:scale-95 text-slate-950 font-bold text-xs tracking-wider transition-all shadow-md flex items-center gap-1.5"
             >
               <span>KABINET</span>
               <ArrowRight className="w-3.5 h-3.5" />
@@ -186,7 +178,7 @@ export default function Navbar() {
           ) : (
             <Link
               href="/login"
-              className="px-6 py-2.5 rounded-full bg-amber-500 hover:bg-amber-400 active:scale-95 text-slate-950 font-extrabold text-xs tracking-wider transition-all shadow-md"
+              className="px-4 sm:px-6 py-2 sm:py-2.5 rounded-full bg-amber-500 hover:bg-amber-400 active:scale-95 text-slate-950 font-extrabold text-xs tracking-wider transition-all shadow-md"
             >
               KIRISH
             </Link>
@@ -195,7 +187,8 @@ export default function Navbar() {
           {/* Hamburger Menu Mobile Button */}
           <button
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="lg:hidden p-2 text-white/80 hover:text-white rounded-lg hover:bg-white/10 transition-colors"
+            aria-label="Menyu"
+            className="lg:hidden p-2 text-white/80 hover:text-white rounded-xl hover:bg-white/10 active:bg-white/15 transition-colors"
           >
             {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
           </button>

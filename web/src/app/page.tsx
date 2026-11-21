@@ -77,8 +77,8 @@ export default function HomePage() {
                 <span>YAGONA RAQAMLI TA'LIM PLATFORMASI 2.0</span>
               </div>
 
-              {/* Grand Headline (Gurukul reference inspired) */}
-              <h1 className="text-4xl sm:text-6xl lg:text-[72px] font-black text-white tracking-tight leading-[1.06]">
+              {/* Grand Headline */}
+              <h1 className="text-3xl sm:text-5xl lg:text-[68px] font-black text-white tracking-tight leading-[1.08]">
                 O'RGANING.<br />
                 O'RGATING.<br />
                 <span className="bg-gradient-to-r from-amber-400 via-yellow-300 to-amber-500 bg-clip-text text-transparent drop-shadow-sm">
@@ -217,7 +217,7 @@ export default function HomePage() {
       </section>
 
       {/* ===================== BENTO GRID 2.0 ===================== */}
-      <section id="imkoniyatlar" className="py-24 bg-white text-slate-900 relative">
+      <section id="imkoniyatlar" className="py-14 sm:py-20 lg:py-24 bg-white text-slate-900 relative">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center max-w-3xl mx-auto mb-16">
             <span className="text-xs font-extrabold tracking-widest text-blue-600 uppercase bg-blue-50 px-3 py-1 rounded-full border border-blue-200">
@@ -403,7 +403,7 @@ export default function HomePage() {
       </section>
 
       {/* ===================== INTERACTIVE ROLES SECTION WITH REAL IMAGES ===================== */}
-      <section id="oqituvchilarga" className="py-24 bg-slate-900 border-t border-slate-800 relative">
+      <section id="oqituvchilarga" className="py-14 sm:py-20 lg:py-24 bg-slate-900 border-t border-slate-800 relative">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center max-w-3xl mx-auto mb-12">
             <span className="text-xs font-extrabold tracking-widest text-amber-400 uppercase bg-amber-500/10 px-3 py-1 rounded-full border border-amber-500/20">
@@ -417,28 +417,28 @@ export default function HomePage() {
             </p>
 
             {/* Interactive Toggle Pill */}
-            <div className="inline-flex p-1.5 rounded-2xl bg-slate-950 border border-slate-800 mt-8 shadow-lg">
+            <div className="inline-flex p-1 sm:p-1.5 rounded-2xl bg-slate-950 border border-slate-800 mt-6 sm:mt-8 shadow-lg max-w-full">
               <button
                 onClick={() => setActiveRoleTab('teacher')}
-                className={`flex items-center gap-2 px-6 py-3 rounded-xl text-xs sm:text-sm font-bold transition-all ${
+                className={`flex items-center gap-1.5 sm:gap-2 px-3.5 sm:px-6 py-2.5 sm:py-3 rounded-xl text-xs sm:text-sm font-bold transition-all whitespace-nowrap ${
                   activeRoleTab === 'teacher'
                     ? 'bg-blue-600 text-white shadow-md'
                     : 'text-slate-400 hover:text-white'
                 }`}
               >
-                <BookOpen className="w-4 h-4" />
-                <span>O'qituvchilar Uchun</span>
+                <BookOpen className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                <span>O'qituvchilarga</span>
               </button>
               <button
                 onClick={() => setActiveRoleTab('student')}
-                className={`flex items-center gap-2 px-6 py-3 rounded-xl text-xs sm:text-sm font-bold transition-all ${
+                className={`flex items-center gap-1.5 sm:gap-2 px-3.5 sm:px-6 py-2.5 sm:py-3 rounded-xl text-xs sm:text-sm font-bold transition-all whitespace-nowrap ${
                   activeRoleTab === 'student'
                     ? 'bg-emerald-600 text-white shadow-md'
                     : 'text-slate-400 hover:text-white'
                 }`}
               >
-                <GraduationCap className="w-4 h-4" />
-                <span>O'quvchilar Uchun</span>
+                <GraduationCap className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                <span>O'quvchilarga</span>
               </button>
             </div>
           </div>
@@ -569,9 +569,9 @@ export default function HomePage() {
       </section>
 
       {/* ===================== PWA APP PROMOTION & 3D PHONE MOCKUP & QR CODE ===================== */}
-      <section id="pwa" className="py-24 bg-white text-slate-900">
+      <section id="pwa" className="py-14 sm:py-20 lg:py-24 bg-white text-slate-900">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="p-8 sm:p-12 lg:p-16 rounded-3xl bg-slate-950 text-white border border-slate-800 shadow-2xl flex flex-col lg:flex-row items-center justify-between gap-12 relative overflow-hidden">
+          <div className="p-6 sm:p-12 lg:p-16 rounded-3xl bg-slate-950 text-white border border-slate-800 shadow-2xl flex flex-col lg:flex-row items-center justify-between gap-8 sm:gap-12 relative overflow-hidden">
             <div className="absolute top-0 right-1/4 w-96 h-96 bg-blue-600/10 rounded-full blur-3xl pointer-events-none" />
 
             {/* Left Content */}
