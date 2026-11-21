@@ -64,7 +64,7 @@ function formatDateTime(dateStr: string) {
 
 export default function DashboardPage() {
   const router = useRouter();
-  const { user, profile, isTeacher, isGuest, loading: authLoading, signOut } = useAuth();
+  const { user, profile, isTeacher, loading: authLoading, signOut } = useAuth();
 
   // Data states
   const [groups, setGroups] = useState<Group[]>([]);
@@ -134,22 +134,30 @@ export default function DashboardPage() {
   const [savingGrade, setSavingGrade] = useState(false);
 
   useEffect(() => {
-    loadData();
-  }, [user, isTeacher]);
+    if (!authLoading && !user) {
+      router.push('/login');
+      return;
+    }
+
+    if (user) {
+      loadData();
+    }
+  }, [user, authLoading]);
 
   const loadData = async () => {
+    if (!user) return;
     setLoadingData(true);
 
     try {
       // 1. Fetch user groups
       let loadedGroups: Group[] = [];
-      if (user && isTeacher) {
+      if (isTeacher) {
         const { data: gData } = await supabase
           .from('groups')
           .select('*')
           .eq('created_by', user.id);
         loadedGroups = (gData as Group[]) || [];
-      } else if (user && !isGuest) {
+      } else {
         // Fetch groups user is a member of
         const { data: mData } = await supabase
           .from('group_members')
@@ -168,10 +176,6 @@ export default function DashboardPage() {
           const { data: allG } = await supabase.from('groups').select('*').limit(20);
           loadedGroups = (allG as Group[]) || [];
         }
-      } else {
-        // Guest / Public access
-        const { data: allG } = await supabase.from('groups').select('*').limit(20);
-        loadedGroups = (allG as Group[]) || [];
       }
       setGroups(loadedGroups);
 
@@ -508,13 +512,13 @@ export default function DashboardPage() {
     // Search query
     if (
       searchQuery &&
-      !task.title.toLowerCase().includes(searchQuery.toLowerCase()) &&
+      !task.title?.toLowerCase().includes(searchQuery.toLowerCase()) &&
       !task.description?.toLowerCase().includes(searchQuery.toLowerCase())
     ) {
       return false;
     }
 
-    const isLate = new Date(task.due_date).getTime() < Date.now();
+    const isLate = task.due_date ? new Date(task.due_date).getTime() < Date.now() : false;
     const mySub = submissions.find(
       (s) => s.task_id === task.id && s.user_id === user?.id
     );
@@ -528,17 +532,18 @@ export default function DashboardPage() {
   // Calculate statistics
   const totalTasksCount = tasks.length;
   const activeTasksCount = tasks.filter(
-    (t) => new Date(t.due_date).getTime() >= Date.now()
+    (t) => t.due_date && new Date(t.due_date).getTime() >= Date.now()
   ).length;
   const completedCount = isTeacher
     ? submissions.length
     : submissions.filter((s) => s.user_id === user?.id).length;
   const gradedCount = submissions.filter((s) => (s.rating || s.grade)).length;
 
-  if (authLoading) {
+  if (authLoading || (!user && typeof window !== 'undefined')) {
     return (
-      <div className="min-h-screen bg-slate-950 flex items-center justify-center text-slate-400">
+      <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center text-slate-400 gap-3">
         <Loader2 className="w-8 h-8 animate-spin text-amber-500 mb-2" />
+        <span className="text-xs font-semibold">Tizimga kirish tekshirilmoqda...</span>
       </div>
     );
   }
@@ -668,7 +673,7 @@ export default function DashboardPage() {
             </button>
           </nav>
 
-          {/* Right Action: User Pill & Login/Logout */}
+          {/* Right Action: User Pill & Logout */}
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-2.5 px-3 py-1.5 rounded-xl bg-slate-950 border border-white/10 shadow-sm">
               <div className="w-7 h-7 rounded-lg bg-gradient-to-tr from-amber-500 to-yellow-400 text-slate-950 flex items-center justify-center font-bold text-xs shrink-0">
@@ -679,28 +684,21 @@ export default function DashboardPage() {
                   {profile?.full_name || user?.email?.split('@')[0]}
                 </div>
                 <div className="text-[10px] text-slate-400 font-medium">
-                  {isGuest ? "Mehmon o'quvchi" : isTeacher ? "O'qituvchi" : "O'quvchi"}
+                  {isTeacher ? "O'qituvchi" : "O'quvchi"}
                 </div>
               </div>
             </div>
 
-            {isGuest ? (
-              <Link
-                href="/login"
-                title="O'qituvchi yoki profilingiz bilan kiring"
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-400 hover:bg-amber-500/20 text-xs font-bold transition-all"
-              >
-                <span>Kirish</span>
-              </Link>
-            ) : (
-              <button
-                onClick={signOut}
-                title="Tizimdan chiqish"
-                className="p-2 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 hover:bg-rose-500/20 hover:text-rose-300 transition-colors"
-              >
-                <LogOut className="w-4 h-4" />
-              </button>
-            )}
+            <button
+              onClick={async () => {
+                await signOut();
+                router.push('/login');
+              }}
+              title="Tizimdan chiqish"
+              className="p-2 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 hover:bg-rose-500/20 hover:text-rose-300 transition-colors"
+            >
+              <LogOut className="w-4 h-4" />
+            </button>
           </div>
         </div>
       </header>

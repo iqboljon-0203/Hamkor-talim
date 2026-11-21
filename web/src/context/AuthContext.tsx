@@ -14,7 +14,6 @@ interface AuthContextType {
   signUp: (email: string, pass: string, fullName: string, role: UserRole) => Promise<{ error: any }>;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
-  updateGuestName: (newName: string) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -23,7 +22,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
-  const [isGuest, setIsGuest] = useState(false);
 
   const fetchProfile = async (userId: string) => {
     try {
@@ -35,42 +33,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       if (!error && data) {
         setProfile(data as UserProfile);
-        setIsGuest(false);
       }
     } catch (err) {
       console.error('[Auth] Error fetching profile:', err);
     }
-  };
-
-  const setupGuestSession = () => {
-    if (typeof window === 'undefined') return;
-    let guestId = localStorage.getItem('hamkor_guest_id');
-    if (!guestId) {
-      guestId = 'student_' + Math.random().toString(36).substring(2, 9);
-      localStorage.setItem('hamkor_guest_id', guestId);
-    }
-    const guestName = localStorage.getItem('hamkor_guest_name') || "Hamkor O'quvchi";
-
-    const guestProfile: UserProfile = {
-      id: guestId,
-      email: 'oquvchi@hamkor.uz',
-      full_name: guestName,
-      role: 'student',
-      created_at: new Date().toISOString(),
-    };
-
-    const mockUser: any = {
-      id: guestId,
-      email: 'oquvchi@hamkor.uz',
-      app_metadata: {},
-      user_metadata: { full_name: guestName },
-      aud: 'authenticated',
-      created_at: new Date().toISOString(),
-    };
-
-    setUser(mockUser);
-    setProfile(guestProfile);
-    setIsGuest(true);
   };
 
   useEffect(() => {
@@ -78,22 +44,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const safetyTimer = setTimeout(() => {
       if (mounted) setLoading(false);
-    }, 2000);
+    }, 2500);
 
     const initAuth = async () => {
       try {
         const { data: { session } } = await supabase.auth.getSession();
         if (session?.user && mounted) {
           setUser(session.user);
-          setIsGuest(false);
           await fetchProfile(session.user.id);
         } else if (mounted) {
-          // Direct PWA access without forced login
-          setupGuestSession();
+          setUser(null);
+          setProfile(null);
         }
       } catch (err) {
         console.error('[Auth] Error getting session:', err);
-        if (mounted) setupGuestSession();
+        if (mounted) {
+          setUser(null);
+          setProfile(null);
+        }
       } finally {
         clearTimeout(safetyTimer);
         if (mounted) setLoading(false);
@@ -107,10 +75,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (!mounted) return;
         if (session?.user) {
           setUser(session.user);
-          setIsGuest(false);
           await fetchProfile(session.user.id);
         } else {
-          setupGuestSession();
+          setUser(null);
+          setProfile(null);
         }
         setLoading(false);
       }
@@ -119,7 +87,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => {
       mounted = false;
       clearTimeout(safetyTimer);
-      authListener.subscription.unsubscribe();
+      authListener?.subscription?.unsubscribe();
     };
   }, []);
 
@@ -130,7 +98,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     });
     if (!error && data.user) {
       setUser(data.user);
-      setIsGuest(false);
       await fetchProfile(data.user.id);
     }
     return { error };
@@ -167,7 +134,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         });
 
         setUser(data.user);
-        setIsGuest(false);
         setProfile({
           id: data.user.id,
           email,
@@ -189,25 +155,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch (err) {
       console.error('[Auth] Error signing out:', err);
     } finally {
-      setupGuestSession();
+      setUser(null);
+      setProfile(null);
     }
   };
 
   const refreshProfile = async () => {
-    if (user && !isGuest) {
+    if (user) {
       await fetchProfile(user.id);
-    }
-  };
-
-  const updateGuestName = (newName: string) => {
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('hamkor_guest_name', newName);
-      if (profile) {
-        setProfile({ ...profile, full_name: newName });
-      }
-      if (user) {
-        setUser({ ...user, user_metadata: { ...user.user_metadata, full_name: newName } } as any);
-      }
     }
   };
 
@@ -218,12 +173,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         profile,
         loading,
         isTeacher: profile?.role === 'teacher',
-        isGuest,
+        isGuest: false,
         signIn,
         signUp,
         signOut,
         refreshProfile,
-        updateGuestName,
       }}
     >
       {children}

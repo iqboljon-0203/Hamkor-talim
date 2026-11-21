@@ -189,7 +189,7 @@ export default function RootLayout({
           <PWAProvider>
             <PWAInstallBanner />
             <Navbar />
-            <main className="flex-1">{children}</main>
+            <div className="flex-1 flex flex-col">{children}</div>
             <Footer />
             <PWAInstallModal />
           </PWAProvider>
