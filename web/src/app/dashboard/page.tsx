@@ -703,50 +703,10 @@ export default function DashboardPage() {
             )}
           </div>
         </div>
-
-        {/* Mobile View Tabs Bar */}
-        <div className="md:hidden flex items-center justify-around border-t border-white/10 px-2 py-2 bg-slate-950">
-          <button
-            onClick={() => setActiveTab('tasks')}
-            className={`flex flex-col items-center py-1 px-2.5 rounded-lg text-[11px] font-bold ${
-              activeTab === 'tasks' ? 'text-amber-400' : 'text-slate-400'
-            }`}
-          >
-            <BookOpen className="w-4 h-4 mb-0.5" />
-            <span>Vazifalar</span>
-          </button>
-          <button
-            onClick={() => setActiveTab('groups')}
-            className={`flex flex-col items-center py-1 px-2.5 rounded-lg text-[11px] font-bold ${
-              activeTab === 'groups' ? 'text-blue-400' : 'text-slate-400'
-            }`}
-          >
-            <Users className="w-4 h-4 mb-0.5" />
-            <span>Guruhlar</span>
-          </button>
-          <button
-            onClick={() => setActiveTab('results')}
-            className={`flex flex-col items-center py-1 px-2.5 rounded-lg text-[11px] font-bold ${
-              activeTab === 'results' ? 'text-emerald-400' : 'text-slate-400'
-            }`}
-          >
-            <Award className="w-4 h-4 mb-0.5" />
-            <span>Baholar</span>
-          </button>
-          <button
-            onClick={() => setActiveTab('calendar')}
-            className={`flex flex-col items-center py-1 px-2.5 rounded-lg text-[11px] font-bold ${
-              activeTab === 'calendar' ? 'text-purple-400' : 'text-slate-400'
-            }`}
-          >
-            <Calendar className="w-4 h-4 mb-0.5" />
-            <span>Taqvim</span>
-          </button>
-        </div>
       </header>
 
       {/* ===================== DASHBOARD MAIN CONTAINER ===================== */}
-      <main className="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
+      <main className="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4 pb-28 md:py-8 w-full">
         {/* Top Welcome & Summary Banner */}
         <div className="relative rounded-2xl sm:rounded-3xl p-4 sm:p-8 bg-gradient-to-r from-blue-950/60 via-slate-900 to-amber-950/40 border border-white/10 shadow-2xl mb-6 sm:mb-8 overflow-hidden">
           <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4 sm:gap-6">
@@ -1321,6 +1281,101 @@ export default function DashboardPage() {
           </div>
         )}
       </main>
+
+      {/* ===================== NATIVE MOBILE FIXED BOTTOM NAVIGATION DOCK ===================== */}
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-slate-950/95 backdrop-blur-xl border-t border-white/10 px-2 py-2 shadow-[0_-10px_30px_rgba(0,0,0,0.6)]">
+        <div className="flex items-center justify-around max-w-md mx-auto">
+          {/* Tab 1: Vazifalar */}
+          <button
+            onClick={() => {
+              setActiveTab('tasks');
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+            }}
+            className={`flex flex-col items-center justify-center py-1 px-3 rounded-2xl transition-all duration-200 relative ${
+              activeTab === 'tasks'
+                ? 'text-amber-400 font-extrabold scale-105'
+                : 'text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            <div className="relative">
+              <BookOpen className="w-5 h-5 mb-0.5" />
+              {tasks.length > 0 && (
+                <span className="absolute -top-1 -right-2 px-1.5 py-0.2 bg-amber-500 text-slate-950 font-black text-[9px] rounded-full min-w-[15px] text-center">
+                  {tasks.length}
+                </span>
+              )}
+            </div>
+            <span className="text-[10px] tracking-tight">Vazifalar</span>
+            {activeTab === 'tasks' && (
+              <span className="w-1.5 h-1.5 rounded-full bg-amber-400 mt-0.5 shadow-sm shadow-amber-400" />
+            )}
+          </button>
+
+          {/* Tab 2: Guruhlar */}
+          <button
+            onClick={() => {
+              setActiveTab('groups');
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+            }}
+            className={`flex flex-col items-center justify-center py-1 px-3 rounded-2xl transition-all duration-200 relative ${
+              activeTab === 'groups'
+                ? 'text-blue-400 font-extrabold scale-105'
+                : 'text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            <div className="relative">
+              <Users className="w-5 h-5 mb-0.5" />
+              {groups.length > 0 && (
+                <span className="absolute -top-1 -right-2 px-1.5 py-0.2 bg-blue-600 text-white font-bold text-[9px] rounded-full min-w-[15px] text-center">
+                  {groups.length}
+                </span>
+              )}
+            </div>
+            <span className="text-[10px] tracking-tight">Guruhlar</span>
+            {activeTab === 'groups' && (
+              <span className="w-1.5 h-1.5 rounded-full bg-blue-400 mt-0.5 shadow-sm shadow-blue-400" />
+            )}
+          </button>
+
+          {/* Tab 3: Baholar */}
+          <button
+            onClick={() => {
+              setActiveTab('results');
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+            }}
+            className={`flex flex-col items-center justify-center py-1 px-3 rounded-2xl transition-all duration-200 relative ${
+              activeTab === 'results'
+                ? 'text-emerald-400 font-extrabold scale-105'
+                : 'text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            <Award className="w-5 h-5 mb-0.5" />
+            <span className="text-[10px] tracking-tight">Baholar</span>
+            {activeTab === 'results' && (
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 mt-0.5 shadow-sm shadow-emerald-400" />
+            )}
+          </button>
+
+          {/* Tab 4: Taqvim */}
+          <button
+            onClick={() => {
+              setActiveTab('calendar');
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+            }}
+            className={`flex flex-col items-center justify-center py-1 px-3 rounded-2xl transition-all duration-200 relative ${
+              activeTab === 'calendar'
+                ? 'text-purple-400 font-extrabold scale-105'
+                : 'text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            <Calendar className="w-5 h-5 mb-0.5" />
+            <span className="text-[10px] tracking-tight">Taqvim</span>
+            {activeTab === 'calendar' && (
+              <span className="w-1.5 h-1.5 rounded-full bg-purple-400 mt-0.5 shadow-sm shadow-purple-400" />
+            )}
+          </button>
+        </div>
+      </nav>
 
       {/* ===================== TASK DETAIL & SUBMISSION & GRADING MODAL ===================== */}
       {selectedTask && (
