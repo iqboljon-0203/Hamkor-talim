@@ -41,7 +41,7 @@
       "purpose": "any"
     }
   ],
-  "start_url": "/dashboard?source=pwa&v=20261121",
+  "start_url": "/login?source=pwa",
   "scope": "/",
   "background_color": "#020617",
   "theme_color": "#f59e0b",
