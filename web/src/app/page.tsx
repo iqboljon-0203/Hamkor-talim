@@ -31,7 +31,7 @@ export default function HomePage() {
     setMounted(true);
   }, []);
 
-  const currentUrl = mounted && siteUrl ? siteUrl : 'https://hamkor-talim.vercel.app';
+  const currentUrl = mounted && siteUrl ? siteUrl : 'https://hamkor-talim.uz';
   const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(
     currentUrl
   )}`;

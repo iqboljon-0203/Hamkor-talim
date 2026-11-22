@@ -7,8 +7,10 @@ import PWAInstallBanner from '@/components/PWAInstallBanner';
 import PWAInstallModal from '@/components/PWAInstallModal';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
+import { SITE_URL } from '@/lib/site';
 
-const SITE_URL = 'https://hamkor-talim.uz';
+const googleVerification = process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION;
+const yandexVerification = process.env.NEXT_PUBLIC_YANDEX_VERIFICATION;
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
@@ -50,10 +52,11 @@ export const metadata: Metadata = {
     telephone: false,
   },
   alternates: {
-    canonical: SITE_URL,
-    languages: {
-      'uz-UZ': SITE_URL,
-    },
+    canonical: '/',
+  },
+  verification: {
+    ...(googleVerification ? { google: googleVerification } : {}),
+    ...(yandexVerification ? { yandex: yandexVerification } : {}),
   },
   openGraph: {
     type: 'website',
@@ -63,21 +66,12 @@ export const metadata: Metadata = {
     title: "Hamkor Ta'lim — Zamonaviy Raqamli Ta'lim Tizimi",
     description:
       "O'qituvchi va o'quvchilar uchun yagona raqamli platforma: topshiriqlar, guruhlar, baholar va PWA ilova.",
-    images: [
-      {
-        url: '/images/hero-bg.jpg',
-        width: 1200,
-        height: 630,
-        alt: "Hamkor Ta'lim Zamonaviy Platformasi",
-      },
-    ],
   },
   twitter: {
     card: 'summary_large_image',
     title: "Hamkor Ta'lim — Zamonaviy Raqamli Ta'lim Tizimi",
     description:
       "O'qituvchi va o'quvchilar uchun yagona raqamli ta'lim maydoni. Topshiriqlar, guruhlar va PWA ilova.",
-    images: ['/images/hero-bg.jpg'],
   },
   robots: {
     index: true,
@@ -131,36 +125,29 @@ export default function RootLayout({
         url: SITE_URL,
         name: "Hamkor Ta'lim",
         description: "Zamonaviy raqamli ta'lim platformasi va mobil ilovasi",
-        inLanguage: 'uz-UZ',
-        potentialAction: {
-          '@type': 'SearchAction',
-          target: `${SITE_URL}/?q={search_term_string}`,
-          'query-input': 'required name=search_term_string',
-        },
+        inLanguage: 'uz',
+        publisher: { '@id': `${SITE_URL}/#organization` },
       },
       {
         '@type': 'EducationalOrganization',
         '@id': `${SITE_URL}/#organization`,
         name: "Hamkor Ta'lim",
         url: SITE_URL,
-        logo: `${SITE_URL}/icons/icon-512x512.png`,
+        logo: `${SITE_URL}/icons/hamkor-v3-512.png`,
         description:
           "O'qituvchilar va o'quvchilar uchun topshiriqlar, guruhlar va baholash tizimi",
       },
       {
-        '@type': 'SoftwareApplication',
-        name: "Hamkor Ta'lim PWA",
+        '@type': 'WebApplication',
+        name: "Hamkor Ta'lim",
+        url: SITE_URL,
+        inLanguage: 'uz',
         operatingSystem: 'Android, iOS, Windows, macOS',
         applicationCategory: 'EducationalApplication',
         offers: {
           '@type': 'Offer',
           price: '0',
           priceCurrency: 'UZS',
-        },
-        aggregateRating: {
-          '@type': 'AggregateRating',
-          ratingValue: '4.9',
-          ratingCount: '1500',
         },
       },
     ],
@@ -202,9 +189,17 @@ export default function RootLayout({
           dangerouslySetInnerHTML={{
             __html: `
               if ('serviceWorker' in navigator) {
+                var hadController = !!navigator.serviceWorker.controller;
+                var reloaded = false;
+                // Yangi SW boshqaruvni olganda (eski kesh tozalangach) sahifani bir marta yangilash
+                navigator.serviceWorker.addEventListener('controllerchange', function() {
+                  if (!hadController || reloaded) return;
+                  reloaded = true;
+                  window.location.reload();
+                });
                 window.addEventListener('load', function() {
-                  navigator.serviceWorker.register('/sw.js').then(function(reg) {
-                    console.log('[PWA] SW registered:', reg.scope);
+                  navigator.serviceWorker.register('/sw.js', { updateViaCache: 'none' }).then(function(reg) {
+                    reg.update();
                   }).catch(function(err) {
                     console.warn('[PWA] SW failed:', err);
                   });

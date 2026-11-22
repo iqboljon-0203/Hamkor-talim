@@ -22,7 +22,7 @@ export function PWAProvider({ children }: { children: React.ReactNode }) {
   const [isInstallModalOpen, setIsInstallModalOpen] = useState(false);
   const [isIOS, setIsIOS] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
-  const [siteUrl, setSiteUrl] = useState('https://hamkor-talim.vercel.app');
+  const [siteUrl, setSiteUrl] = useState('https://hamkor-talim.uz');
 
   useEffect(() => {
     if (typeof window === 'undefined') return;

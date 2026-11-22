@@ -1,33 +1,12 @@
 import { MetadataRoute } from 'next';
+import { SITE_URL } from '@/lib/site';
 
 export default function sitemap(): MetadataRoute.Sitemap {
-  const baseUrl = 'https://hamkor-talim.uz';
-  const currentDate = new Date().toISOString();
+  const lastModified = new Date();
 
   return [
-    {
-      url: baseUrl,
-      lastModified: currentDate,
-      changeFrequency: 'daily',
-      priority: 1.0,
-    },
-    {
-      url: `${baseUrl}/login`,
-      lastModified: currentDate,
-      changeFrequency: 'monthly',
-      priority: 0.8,
-    },
-    {
-      url: `${baseUrl}/signup`,
-      lastModified: currentDate,
-      changeFrequency: 'monthly',
-      priority: 0.8,
-    },
-    {
-      url: `${baseUrl}/dashboard`,
-      lastModified: currentDate,
-      changeFrequency: 'daily',
-      priority: 0.7,
-    },
+    { url: SITE_URL, lastModified, changeFrequency: 'weekly', priority: 1.0 },
+    { url: `${SITE_URL}/signup`, lastModified, changeFrequency: 'monthly', priority: 0.8 },
+    { url: `${SITE_URL}/login`, lastModified, changeFrequency: 'monthly', priority: 0.6 },
   ];
 }

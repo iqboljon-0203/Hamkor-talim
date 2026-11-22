@@ -16,6 +16,15 @@ const nextConfig = {
       },
     ],
   },
+  async redirects() {
+    // Bitta asosiy domen: www va vercel.app manzillarini hamkor-talim.uz ga 301 bilan yo'naltirish
+    return ['www.hamkor-talim.uz', 'hamkor-talim.vercel.app'].map((host) => ({
+      source: '/:path*',
+      has: [{ type: 'host', value: host }],
+      destination: 'https://hamkor-talim.uz/:path*',
+      permanent: true,
+    }));
+  },
   async headers() {
     return [
       {
