@@ -154,8 +154,15 @@ export default function RootLayout({
   };
 
   return (
-    <html lang="uz" suppressHydrationWarning>
+    <html lang="uz" translate="no" className="notranslate" suppressHydrationWarning>
       <head>
+        {/* Brauzer avto-tarjimasi DOM'ni o'zgartirib React'ni yiqitmasligi uchun */}
+        <meta name="google" content="notranslate" />
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){if(typeof Node!=='function'||!Node.prototype)return;var r=Node.prototype.removeChild;Node.prototype.removeChild=function(c){if(c&&c.parentNode!==this){return c}return r.apply(this,arguments)};var i=Node.prototype.insertBefore;Node.prototype.insertBefore=function(n,ref){if(ref&&ref.parentNode!==this){return i.call(this,n,null)}return i.apply(this,arguments)}})();`,
+          }}
+        />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link

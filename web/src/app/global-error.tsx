@@ -71,6 +71,14 @@ export default function GlobalError({
         <p style={{ color: '#94a3b8', margin: 0, maxWidth: 360 }}>
           Ilova yangilangan bo'lishi mumkin. Sahifani yangilab ko'ring.
         </p>
+        {error?.message ? (
+          <code
+            style={{ fontSize: 11, color: '#64748b', maxWidth: 360, wordBreak: 'break-word' }}
+          >
+            {error.name}: {error.message.slice(0, 200)}
+            {error.digest ? ` (${error.digest})` : ''}
+          </code>
+        ) : null}
         <div style={{ display: 'flex', gap: 12 }}>
           <button
             onClick={hardReload}
