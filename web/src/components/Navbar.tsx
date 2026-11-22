@@ -16,10 +16,7 @@ export default function Navbar() {
   const [activeSection, setActiveSection] = useState('hero');
 
   const isHome = pathname === '/';
-
-  if (pathname?.startsWith('/dashboard')) {
-    return null;
-  }
+  const hidden = pathname?.startsWith('/dashboard');
 
   const scrollTo = (sectionId: string) => {
     setMobileMenuOpen(false);
@@ -67,6 +64,11 @@ export default function Navbar() {
     window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
   }, [isHome]);
+
+  // Barcha hook'lardan KEYIN qaytariladi — aks holda sahifa almashganda React #300 xatosi chiqadi
+  if (hidden) {
+    return null;
+  }
 
   return (
     <header className="sticky top-0 z-40 w-full bg-slate-950/90 backdrop-blur-md border-b border-white/10 transition-all">
