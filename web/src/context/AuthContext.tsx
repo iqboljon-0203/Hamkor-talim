@@ -11,28 +11,57 @@ interface AuthContextType {
   isTeacher: boolean;
   isGuest: boolean;
   signIn: (email: string, pass: string) => Promise<{ error: any }>;
-  signUp: (email: string, pass: string, fullName: string, role: UserRole) => Promise<{ error: any }>;
+  signUp: (
+    email: string,
+    pass: string,
+    fullName: string,
+    role: UserRole
+  ) => Promise<{ error: any; needsConfirmation?: boolean }>;
+  resendConfirmation: (email: string) => Promise<{ error: any }>;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+/** Email tasdiqlash havolasi qaytadigan manzil (joriy domen bo'yicha) */
+export function getEmailRedirectUrl() {
+  const origin =
+    typeof window !== 'undefined' ? window.location.origin : 'https://hamkor-talim.uz';
+  return `${origin}/auth/confirm`;
+}
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const fetchProfile = async (userId: string) => {
+  const fetchProfile = async (userId: string, authUser?: User | null) => {
     try {
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', userId)
-        .single();
+        .maybeSingle();
 
       if (!error && data) {
         setProfile(data as UserProfile);
+        return;
+      }
+
+      // Email tasdiqlangandan keyingi birinchi kirish: profil hali yo'q bo'lsa, metadata'dan yaratamiz
+      if (!error && !data && authUser) {
+        const meta = (authUser.user_metadata || {}) as { full_name?: string; role?: UserRole };
+        const newProfile: UserProfile = {
+          id: authUser.id,
+          email: authUser.email || '',
+          full_name: meta.full_name || authUser.email?.split('@')[0] || 'Foydalanuvchi',
+          role: meta.role === 'teacher' ? 'teacher' : 'student',
+          created_at: new Date().toISOString(),
+        };
+        const { error: upsertError } = await supabase.from('profiles').upsert(newProfile);
+        if (!upsertError) setProfile(newProfile);
+        else console.error('[Auth] Error creating profile:', upsertError);
       }
     } catch (err) {
       console.error('[Auth] Error fetching profile:', err);
@@ -51,7 +80,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const { data: { session } } = await supabase.auth.getSession();
         if (session?.user && mounted) {
           setUser(session.user);
-          await fetchProfile(session.user.id);
+          await fetchProfile(session.user.id, session.user);
         } else if (mounted) {
           setUser(null);
           setProfile(null);
@@ -75,7 +104,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (!mounted) return;
         if (session?.user) {
           setUser(session.user);
-          await fetchProfile(session.user.id);
+          await fetchProfile(session.user.id, session.user);
         } else {
           setUser(null);
           setProfile(null);
@@ -98,7 +127,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     });
     if (!error && data.user) {
       setUser(data.user);
-      await fetchProfile(data.user.id);
+      await fetchProfile(data.user.id, data.user);
     }
     return { error };
   };
@@ -114,6 +143,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         email,
         password: pass,
         options: {
+          emailRedirectTo: getEmailRedirectUrl(),
           data: {
             full_name: fullName,
             role,
@@ -122,6 +152,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       });
 
       if (error) return { error };
+
+      // Supabase "Confirm email" yoqilgan: foydalanuvchi yaratiladi, lekin sessiya berilmaydi.
+      // Profil qatori trigger orqali (yoki tasdiqlangandan keyin) yaratiladi.
+      if (data.user && !data.session) {
+        // Email allaqachon ro'yxatdan o'tgan bo'lsa, Supabase identities bo'sh qaytaradi
+        if (data.user.identities && data.user.identities.length === 0) {
+          return { error: { message: 'User already registered' } };
+        }
+        return { error: null, needsConfirmation: true };
+      }
 
       if (data.user) {
         // Insert profile row
@@ -147,6 +187,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch (err: any) {
       return { error: err };
     }
+  };
+
+  const resendConfirmation = async (email: string) => {
+    const { error } = await supabase.auth.resend({
+      type: 'signup',
+      email,
+      options: { emailRedirectTo: getEmailRedirectUrl() },
+    });
+    return { error };
   };
 
   const signOut = async () => {
@@ -176,6 +225,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         isGuest: false,
         signIn,
         signUp,
+        resendConfirmation,
         signOut,
         refreshProfile,
       }}

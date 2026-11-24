@@ -13,13 +13,14 @@ import {
   AlertCircle,
   Loader2,
   CheckCircle2,
+  MailCheck,
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { UserRole } from '@/lib/supabase';
 
 export default function SignupPage() {
   const router = useRouter();
-  const { signUp, user, loading: authLoading } = useAuth();
+  const { signUp, resendConfirmation, user, loading: authLoading } = useAuth();
 
   const [role, setRole] = useState<UserRole>('student');
   const [fullName, setFullName] = useState('');
@@ -28,6 +29,9 @@ export default function SignupPage() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [sentTo, setSentTo] = useState('');
+  const [resending, setResending] = useState(false);
+  const [resendInfo, setResendInfo] = useState('');
 
   React.useEffect(() => {
     if (!authLoading && user) {
@@ -56,7 +60,7 @@ export default function SignupPage() {
     setError('');
 
     try {
-      const { error: signUpError } = await signUp(
+      const { error: signUpError, needsConfirmation } = await signUp(
         email.trim(),
         password,
         fullName.trim(),
@@ -69,6 +73,8 @@ export default function SignupPage() {
         } else {
           setError(signUpError.message || "Ro'yxatdan o'tishda xatolik yuz berdi");
         }
+      } else if (needsConfirmation) {
+        setSentTo(email.trim());
       } else {
         router.push('/dashboard');
       }
@@ -78,6 +84,52 @@ export default function SignupPage() {
       setLoading(false);
     }
   };
+
+  const handleResend = async () => {
+    setResending(true);
+    setResendInfo('');
+    const { error: resendError } = await resendConfirmation(sentTo);
+    setResending(false);
+    if (!resendError) {
+      setResendInfo('Xat qayta yuborildi.');
+    } else if (resendError.status === 429 || resendError.message?.toLowerCase().includes('rate')) {
+      setResendInfo("Juda ko'p urinish. Bir daqiqadan keyin qayta urinib ko'ring.");
+    } else {
+      setResendInfo(resendError.message || "Xatni yuborib bo'lmadi");
+    }
+  };
+
+  if (sentTo) {
+    return (
+      <div className="min-h-[calc(100vh-80px)] bg-slate-900/50 flex flex-col justify-center items-center px-4 py-12">
+        <div className="max-w-md w-full bg-white rounded-3xl p-8 sm:p-10 shadow-2xl border border-slate-100 text-slate-900 text-center">
+          <div className="w-16 h-16 mx-auto rounded-2xl bg-amber-100 flex items-center justify-center mb-5">
+            <MailCheck className="w-9 h-9 text-amber-600" />
+          </div>
+          <h1 className="text-2xl font-black mb-2">Emailingizni tekshiring</h1>
+          <p className="text-sm text-slate-600 mb-1">Tasdiqlash havolasi yuborildi:</p>
+          <p className="text-sm font-bold text-slate-900 mb-5 break-all">{sentTo}</p>
+          <p className="text-xs text-slate-500 mb-6">
+            Xatdagi <b>havolani bosing</b> — shundan keyin kabinetingiz ochiladi. Xat kelmasa,
+            <b> Spam</b> papkasini tekshiring.
+          </p>
+          <button
+            type="button"
+            onClick={handleResend}
+            disabled={resending}
+            className="w-full py-3 rounded-xl border border-slate-200 text-slate-800 font-bold text-sm hover:bg-slate-50 disabled:opacity-60 flex items-center justify-center gap-2"
+          >
+            {resending && <Loader2 className="w-4 h-4 animate-spin" />}
+            Xatni qayta yuborish
+          </button>
+          {resendInfo && <p className="text-xs text-slate-600 mt-3">{resendInfo}</p>}
+          <Link href="/login" className="inline-block mt-6 text-xs font-semibold text-blue-600">
+            Tasdiqladim — kirish sahifasiga o&apos;tish
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-[calc(100vh-80px)] bg-slate-900/50 flex flex-col justify-center items-center px-4 py-12">

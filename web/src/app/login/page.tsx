@@ -8,12 +8,15 @@ import { useAuth } from '@/context/AuthContext';
 
 export default function LoginPage() {
   const router = useRouter();
-  const { signIn, user, loading: authLoading } = useAuth();
+  const { signIn, resendConfirmation, user, loading: authLoading } = useAuth();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [unconfirmed, setUnconfirmed] = useState(false);
+  const [resending, setResending] = useState(false);
+  const [resendInfo, setResendInfo] = useState('');
 
   React.useEffect(() => {
     if (!authLoading && user) {
@@ -30,11 +33,21 @@ export default function LoginPage() {
 
     setLoading(true);
     setError('');
+    setUnconfirmed(false);
+    setResendInfo('');
 
     try {
       const { error: signInError } = await signIn(email.trim(), password);
       if (signInError) {
-        if (signInError.message?.includes('Invalid login credentials')) {
+        if (
+          signInError.code === 'email_not_confirmed' ||
+          signInError.message?.toLowerCase().includes('email not confirmed')
+        ) {
+          setUnconfirmed(true);
+          setError(
+            "Email manzilingiz hali tasdiqlanmagan. Pochtangizdagi tasdiqlash havolasini bosing."
+          );
+        } else if (signInError.message?.includes('Invalid login credentials')) {
           setError("Noto'g'ri email yoki parol kiritildi");
         } else {
           setError(signInError.message || 'Tizimga kirishda xatolik');
@@ -46,6 +59,20 @@ export default function LoginPage() {
       setError(err.message || 'Kutilmagan xatolik yuz berdi');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleResend = async () => {
+    setResending(true);
+    setResendInfo('');
+    const { error: resendError } = await resendConfirmation(email.trim());
+    setResending(false);
+    if (!resendError) {
+      setResendInfo('Tasdiqlash xati qayta yuborildi. Pochtangizni (va Spam papkasini) tekshiring.');
+    } else if (resendError.status === 429 || resendError.message?.toLowerCase().includes('rate')) {
+      setResendInfo("Juda ko'p urinish. Bir daqiqadan keyin qayta urinib ko'ring.");
+    } else {
+      setResendInfo(resendError.message || "Xatni yuborib bo'lmadi");
     }
   };
 
@@ -88,6 +115,21 @@ export default function LoginPage() {
           <div className="mb-5 p-3.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-semibold flex items-center gap-2">
             <AlertCircle className="w-4 h-4 shrink-0 text-rose-500" />
             <span>{error}</span>
+          </div>
+        )}
+
+        {unconfirmed && (
+          <div className="-mt-2 mb-5">
+            <button
+              type="button"
+              onClick={handleResend}
+              disabled={resending}
+              className="w-full py-2.5 rounded-xl border border-slate-200 text-slate-800 font-bold text-xs hover:bg-slate-50 disabled:opacity-60 flex items-center justify-center gap-2"
+            >
+              {resending && <Loader2 className="w-4 h-4 animate-spin" />}
+              Tasdiqlash xatini qayta yuborish
+            </button>
+            {resendInfo && <p className="text-xs text-slate-600 mt-2 text-center">{resendInfo}</p>}
           </div>
         )}
 
