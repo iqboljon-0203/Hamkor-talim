@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import {
   X,
   Smartphone,
@@ -10,6 +10,9 @@ import {
   Download,
   QrCode,
   Laptop,
+  ExternalLink,
+  Copy,
+  Check,
 } from 'lucide-react';
 import { usePWA } from '@/context/PWAContext';
 
@@ -22,9 +25,15 @@ export default function PWAInstallModal() {
     isMobile,
     siteUrl,
     deferredPrompt,
+    isInstalled,
+    isAndroid,
+    isInAppBrowser,
+    isIOSNonSafari,
   } = usePWA();
 
   if (!isInstallModalOpen) return null;
+
+  const siteHost = siteUrl.replace(/^https?:\/\//, '');
 
   const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(
     siteUrl
@@ -57,7 +66,47 @@ export default function PWAInstallModal() {
         </div>
 
         {/* Content depending on device */}
-        {isIOS ? (
+        {isInstalled ? (
+          <div className="space-y-4 text-center">
+            <CheckCircle className="w-12 h-12 mx-auto text-emerald-500" />
+            <p className="text-sm text-slate-700 font-semibold">
+              Ilova bu qurilmada allaqachon o&apos;rnatilgan. Uni bosh ekrandagi «Hamkor» belgisi orqali oching.
+            </p>
+          </div>
+        ) : isInAppBrowser ? (
+          /* Telegram / Instagram / Gmail ichidagi brauzer — o'rnatish imkoni yo'q */
+          <div className="space-y-4">
+            <div className="p-3.5 rounded-2xl bg-amber-50 border border-amber-200/60 text-xs text-amber-900 leading-relaxed font-medium">
+              Sayt hozir boshqa ilova (Telegram, Instagram, Gmail va h.k.) ichida ochilgan. Bunday oynada ilovani o&apos;rnatib bo&apos;lmaydi — saytni <b>{isIOS ? 'Safari' : 'Chrome'}</b> brauzerida oching.
+            </div>
+            {isAndroid ? (
+              <a
+                href={`intent://${siteHost}/#Intent;scheme=https;package=com.android.chrome;S.browser_fallback_url=${encodeURIComponent(siteUrl)};end`}
+                className="w-full py-4 rounded-2xl bg-blue-600 text-white font-bold text-sm flex items-center justify-center gap-2 hover:bg-blue-500 transition-colors"
+              >
+                <ExternalLink className="w-5 h-5" />
+                <span>Chrome&apos;da ochish</span>
+              </a>
+            ) : (
+              <StepList
+                steps={[
+                  <>Yuqori yoki pastki burchakdagi <b>⋯</b> / <b>Ulashish</b> tugmasini bosing</>,
+                  <><b>«Safari&apos;da ochish»</b> (Open in Safari) ni tanlang</>,
+                  <>Safari&apos;da yana <b>«Ilovani o&apos;rnatish»</b> tugmasini bosing</>,
+                ]}
+              />
+            )}
+            <CopyLinkButton url={siteUrl} />
+          </div>
+        ) : isIOSNonSafari ? (
+          /* iPhone'da Chrome/Firefox — bosh ekranga faqat Safari qo'shadi */
+          <div className="space-y-4">
+            <div className="p-3.5 rounded-2xl bg-amber-50 border border-amber-200/60 text-xs text-amber-900 leading-relaxed font-medium">
+              iPhone&apos;da ilovani faqat <b>Safari</b> brauzeri orqali o&apos;rnatish mumkin. Havolani nusxalab, Safari&apos;da oching.
+            </div>
+            <CopyLinkButton url={siteUrl} />
+          </div>
+        ) : isIOS ? (
           /* iOS Instructions */
           <div className="space-y-4">
             <div className="p-3.5 rounded-2xl bg-amber-50 border border-amber-200/60 text-xs text-amber-900 leading-relaxed font-medium">
@@ -128,6 +177,22 @@ export default function PWAInstallModal() {
               <span>Hozir o'rnatish</span>
             </button>
           </div>
+        ) : isMobile ? (
+          /* Android (yoki boshqa telefon), brauzer o'rnatish oynasini bermadi — menyu orqali */
+          <div className="space-y-4">
+            <div className="p-3.5 rounded-2xl bg-blue-50 border border-blue-200/60 text-xs text-blue-900 leading-relaxed font-medium">
+              Ilovani brauzer menyusi orqali 2 qadamda o&apos;rnating:
+            </div>
+            <StepList
+              steps={[
+                <>Yuqori o&apos;ng burchakdagi <b>⋮</b> (Chrome) yoki pastdagi <b>≡</b> (Samsung Internet) menyusini bosing</>,
+                <><b>«Ilovani o&apos;rnatish»</b> yoki <b>«Bosh ekranga qo&apos;shish»</b> ni tanlang va tasdiqlang</>,
+              ]}
+            />
+            <p className="text-[11px] text-slate-500 text-center">
+              Menyuda bu band bo&apos;lmasa, saytni <b>Google Chrome</b> brauzerida oching.
+            </p>
+          </div>
         ) : (
           /* Desktop QR Code & Instructions */
           <div className="space-y-4 text-center">
@@ -156,5 +221,48 @@ export default function PWAInstallModal() {
         )}
       </div>
     </div>
+  );
+}
+
+function StepList({ steps }: { steps: React.ReactNode[] }) {
+  return (
+    <div className="space-y-3 text-sm text-slate-700">
+      {steps.map((step, i) => (
+        <div key={i} className="flex items-center gap-3 p-3 rounded-xl bg-slate-50 border border-slate-100">
+          <div className="w-7 h-7 rounded-lg bg-blue-600 text-white flex items-center justify-center font-bold text-xs shrink-0">
+            {i + 1}
+          </div>
+          <div className="flex-1 leading-snug">{step}</div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function CopyLinkButton({ url }: { url: string }) {
+  const [copied, setCopied] = useState(false);
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(url);
+    } catch {
+      const ta = document.createElement('textarea');
+      ta.value = url;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      ta.remove();
+    }
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+  return (
+    <button
+      type="button"
+      onClick={copy}
+      className="w-full py-3 rounded-2xl border border-slate-200 text-slate-800 font-bold text-sm flex items-center justify-center gap-2 hover:bg-slate-50 transition-colors"
+    >
+      {copied ? <Check className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4" />}
+      <span>{copied ? 'Havola nusxalandi' : `Havolani nusxalash (${url.replace(/^https?:\/\//, '')})`}</span>
+    </button>
   );
 }
