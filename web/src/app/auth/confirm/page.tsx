@@ -65,9 +65,13 @@ export default function ConfirmEmailPage() {
       }
 
       try {
-        // 1) Email shablonida token_hash ishlatilgan bo'lsa
-        if (p.tokenHash && p.type) {
-          const { error } = await supabase.auth.verifyOtp({ token_hash: p.tokenHash, type: p.type });
+        // 1) Email shablonida token_hash ishlatilgan bo'lsa.
+        // Shablonda type bo'sh kelishi mumkin — u holda ro'yxatdan o'tish tasdiqlash turi ('email')
+        if (p.tokenHash) {
+          const { error } = await supabase.auth.verifyOtp({
+            token_hash: p.tokenHash,
+            type: p.type || 'email',
+          });
           if (error) return finish('error', translateError(error.code ?? null, error.message));
           return finish('success');
         }
@@ -88,11 +92,13 @@ export default function ConfirmEmailPage() {
           await new Promise((r) => setTimeout(r, 250));
         }
 
-        if (p.accessToken) {
-          finish('error', "Sessiyani ochib bo'lmadi. Iltimos, tizimga qayta kiring.");
-        } else {
-          finish('confirmed-no-session');
-        }
+        // Hech narsa tekshirilmagan bo'lsa — "tasdiqlandi" deb aldamaymiz
+        finish(
+          'error',
+          p.accessToken
+            ? "Sessiyani ochib bo'lmadi. Iltimos, tizimga qayta kiring."
+            : "Tasdiqlash havolasi to'liq emas. Xatdagi havolani qayta oching yoki yangi havola so'rang."
+        );
       } catch (err: any) {
         finish('error', err?.message || 'Kutilmagan xatolik');
       }
