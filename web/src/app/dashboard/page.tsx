@@ -139,10 +139,11 @@ export default function DashboardPage() {
       return;
     }
 
-    if (user) {
+    if (user && !authLoading) {
       loadData();
     }
-  }, [user, authLoading]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id, authLoading, profile?.role]);
 
   const loadData = async () => {
     if (!user) return;
@@ -171,10 +172,6 @@ export default function DashboardPage() {
             .select('*')
             .in('id', groupIds);
           loadedGroups = (gData as Group[]) || [];
-        } else {
-          // Fallback: fetch general public groups
-          const { data: allG } = await supabase.from('groups').select('*').limit(20);
-          loadedGroups = (allG as Group[]) || [];
         }
       }
       setGroups(loadedGroups);
@@ -219,20 +216,22 @@ export default function DashboardPage() {
   };
 
   // ===================== FILE UPLOAD HELPER =====================
-  const uploadFileToStorage = async (file: File, folder = 'tasks'): Promise<string> => {
-    try {
-      const cleanName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
-      const filePath = `${folder}/${Date.now()}_${cleanName}`;
-      await uploadFile('task-files', filePath, file, file.type);
-      return getFileUrl('task-files', filePath);
-    } catch (err: any) {
-      console.warn('[uploadFileToStorage] Storage upload note, fallback to DataURL:', err);
-      return new Promise((resolve) => {
-        const reader = new FileReader();
-        reader.onloadend = () => resolve(reader.result as string);
-        reader.readAsDataURL(file);
-      });
+  const MAX_FILE_SIZE = 20 * 1024 * 1024; // 20 MB
+
+  // O'qituvchi fayllari 'task-files', o'quvchi javoblari 'submission-files' bucket'iga
+  // (storage RLS: task-files'ga faqat o'qituvchi yoza oladi)
+  const uploadFileToStorage = async (
+    file: File,
+    folder: 'tasks' | 'submissions' = 'tasks'
+  ): Promise<string> => {
+    if (file.size > MAX_FILE_SIZE) {
+      throw new Error("Fayl hajmi 20 MB dan oshmasligi kerak");
     }
+    const bucket = folder === 'submissions' ? 'submission-files' : 'task-files';
+    const cleanName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+    const filePath = `${folder}/${user?.id ?? 'anon'}/${Date.now()}_${cleanName}`;
+    await uploadFile(bucket, filePath, file, file.type);
+    return getFileUrl(bucket, filePath);
   };
 
   // ===================== VIEW GROUP MEMBERS =====================
@@ -295,7 +294,10 @@ export default function DashboardPage() {
         .insert({
           title: taskTitle.trim(),
           description: taskDescription.trim(),
-          due_date: taskDueDate || new Date(Date.now() + 7 * 86400000).toISOString(),
+          // datetime-local qiymati foydalanuvchining mahalliy vaqti — ISO (UTC) ga aylantiramiz
+          due_date: taskDueDate
+            ? new Date(taskDueDate).toISOString()
+            : new Date(Date.now() + 7 * 86400000).toISOString(),
           group_id: taskGroupId,
           created_by: user.id,
           file_url: fileUrl || null,
@@ -315,9 +317,9 @@ export default function DashboardPage() {
       } else {
         showToast("Topshiriq yaratishda xatolik yuz berdi", "error");
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('[Dashboard] Error creating task:', err);
-      showToast("Topshiriq yaratishda xatolik", "error");
+      showToast(err?.message ? `Xatolik: ${err.message}` : "Topshiriq yaratishda xatolik", "error");
     } finally {
       setCreatingTask(false);
     }
@@ -418,11 +420,10 @@ export default function DashboardPage() {
           .eq('id', existingSub.id)
           .select();
 
-        if (!error && data) {
-          setSubmissions((prev) =>
-            prev.map((s) => (s.id === existingSub.id ? (data[0] as Submission) : s))
-          );
-        }
+        if (error || !data?.length) throw error ?? new Error("Javob yangilanmadi");
+        setSubmissions((prev) =>
+          prev.map((s) => (s.id === existingSub.id ? (data[0] as Submission) : s))
+        );
       } else {
         // Insert new submission
         const { data, error } = await supabase
@@ -436,9 +437,8 @@ export default function DashboardPage() {
           })
           .select();
 
-        if (!error && data) {
-          setSubmissions((prev) => [data[0] as Submission, ...prev]);
-        }
+        if (error || !data?.length) throw error ?? new Error("Javob saqlanmadi");
+        setSubmissions((prev) => [data[0] as Submission, ...prev]);
       }
 
       setSubContent('');
@@ -446,9 +446,12 @@ export default function DashboardPage() {
       setSubFilePreview(null);
       setIsEditingSub(false);
       showToast("Topshiriq javobi muvaffaqiyatli yuborildi!");
-    } catch (err) {
+    } catch (err: any) {
       console.error('[Dashboard] Error submitting task:', err);
-      showToast("Javobni yuborishda xatolik yuz berdi", "error");
+      showToast(
+        err?.message ? `Javobni yuborishda xatolik: ${err.message}` : "Javobni yuborishda xatolik yuz berdi",
+        "error"
+      );
     } finally {
       setSubmittingTask(false);
     }
@@ -464,14 +467,12 @@ export default function DashboardPage() {
         .from('submissions')
         .update({
           rating: ratingScore,
-          grade: ratingScore,
           feedback: ratingFeedback.trim(),
-          status: 'graded',
         })
         .eq('id', gradingSubmission.id)
         .select();
 
-      if (!error && data) {
+      if (!error && data?.length) {
         const updated = data[0] as Submission;
         setSubmissions((prev) =>
           prev.map((s) => (s.id === updated.id ? updated : s))
@@ -495,7 +496,8 @@ export default function DashboardPage() {
     if (!confirm("Haqiqatan ham bu topshiriqni o'chirmoqchimisiz?")) return;
 
     try {
-      await supabase.from('tasks').delete().eq('id', taskId);
+      const { error } = await supabase.from('tasks').delete().eq('id', taskId);
+      if (error) throw error;
       setTasks((prev) => prev.filter((t) => t.id !== taskId));
       if (selectedTask?.id === taskId) {
         setSelectedTask(null);
@@ -552,7 +554,7 @@ export default function DashboardPage() {
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col antialiased selection:bg-amber-500 selection:text-slate-950">
       {/* ===================== FLOATING TOAST NOTIFICATION ===================== */}
       {toast && (
-        <div className="fixed bottom-6 right-6 z-50 animate-in slide-in-from-bottom duration-300">
+        <div className="fixed bottom-6 right-6 z-[80] animate-in slide-in-from-bottom duration-300">
           <div
             className={`px-4 py-3 rounded-2xl shadow-2xl flex items-center gap-3 border text-xs font-bold backdrop-blur-md ${
               toast.type === 'success'
@@ -574,7 +576,7 @@ export default function DashboardPage() {
       {previewingImage && (
         <div
           onClick={() => setPreviewingImage(null)}
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/90 backdrop-blur-md cursor-zoom-out animate-in fade-in duration-200"
+          className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/90 backdrop-blur-md cursor-zoom-out animate-in fade-in duration-200"
         >
           <div className="relative max-w-4xl max-h-[90vh] overflow-hidden rounded-2xl border border-white/20 shadow-2xl">
             {/* eslint-disable-next-line @next/next/no-img-element */}
